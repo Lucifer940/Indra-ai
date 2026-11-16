@@ -1,7 +1,9 @@
 # INDRA AI
 
 **A personal AI assistant for Android and Windows — one shared core, one secure backend.**
-Created by **Umesh Chaudhary**. Current version **1.1.0**.
+Created by **Umesh Chaudhary**. Current version **1.1.1**.
+
+[![Android build](https://github.com/Lucifer940/Indra-ai/actions/workflows/android-build.yml/badge.svg)](https://github.com/Lucifer940/Indra-ai/actions/workflows/android-build.yml)
 
 INDRA is a real, working application: a Java backend you run yourself, a JavaFX desktop assistant for
 Windows, and a native Android app. All three share the same `indra-core` module, so personality, memory,
@@ -84,7 +86,19 @@ scripts/                One-command runners and packaging helpers.
 
 ---
 
+## Get the Android APK without installing a toolchain
+
+Every push builds the app on GitHub's runners. Open **Actions → Android build → the latest run** and
+download the **`indra-ai-debug-apk`** artifact; it contains `indra-android-debug.apk` plus its SHA-256.
+Install it with `adb install -r indra-android-debug.apk`, or copy it to the phone and tap it (allow
+"install unknown apps" for your file manager).
+
+The APK is a debug build signed with the standard Android debug key: fine for your own phone, but for
+Play Store distribution create your own keystore (see `docs/BUILD_AND_RUN.md`).
+
 ## Quick start
+
+The repository ships the Gradle wrapper, so `./gradlew` works everywhere (Gradle 8.7 + JDK 17).
 
 ### 1. Backend
 ```bash
@@ -105,15 +119,15 @@ Then add an AI provider key (server-side, encrypted) in **Settings → API keys*
 ### 2. Windows app
 ```bash
 cd modules/indra-desktop
-gradle run
+../../gradlew run
 ```
 Sign in with the account you created, or press **Start backend** to launch the bundled jar.
 
 ### 3. Android app
 ```bash
 export ANDROID_HOME=/path/to/Android/Sdk
-gradle :indra-android:assembleDebug
-adb install modules/indra-android/build/outputs/apk/debug/indra-android-debug.apk
+cd modules/indra-android && ../../gradlew assembleDebug
+adb install -r build/outputs/apk/debug/indra-android-debug.apk
 ```
 The emulator reaches the host backend at `http://10.0.2.2:8420` (already the default). On a real phone,
 open **Settings → Server** and enter your PC's LAN address, e.g. `http://192.168.1.20:8420`, or your
@@ -160,8 +174,9 @@ AES-256-GCM) or supplied as environment variables. More detail: [`config/api-key
 This repository is source code produced without a working JDK, Android SDK or Gradle distribution in the
 authoring environment. Therefore:
 
-- **No build has been executed here, no test run has been observed, and no APK is included.**
-  Everything must be compiled on your machine; the commands above are the ones to use.
+- The Android APK **is** built by CI (`android-build.yml`) and **has** compiled successfully; the unit and
+  integration test suites run in the same workflow and are reported separately — read their result before
+  relying on them.
 - Google/GitHub sign-in, weather, search and AI answers require their respective server-side credentials.
   Without them the app degrades gracefully and says so — it does not invent results.
 - Windows dictation depends on the speech components installed in Windows.

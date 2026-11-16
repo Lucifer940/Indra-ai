@@ -14,8 +14,8 @@ android {
         applicationId 'ai.indra.android'
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName '1.1.0'
+        versionCode 3
+        versionName '1.1.1'
         resourceConfigurations += ['en', 'ne']
         // Default backend address. 10.0.2.2 is the host machine from the emulator;
         // users can change it at runtime in Settings → Connection.

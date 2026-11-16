@@ -192,9 +192,39 @@ jobs:
           gradle-version: wrapper
 
       - name: Run unit and integration tests
+        id: tests
+        continue-on-error: true
         run: |
+          set -o pipefail
           chmod +x gradlew
-          ./gradlew :indra-core:test :indra-backend:test --no-daemon --stacktrace
+          ./gradlew :indra-core:test :indra-backend:test --no-daemon --stacktrace 2>&1 | tee tests.log
+
+      - name: Publish test failures
+        if: steps.tests.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess
+
+          text = open('tests.log', errors='replace').read()
+          keep = [line for line in text.splitlines()
+                  if re.search(r'error:|FAILED|What went wrong|Caused by|expected:|but was:|Execution failed', line)]
+          summary = ('\n'.join(keep[-160:]) if keep else '\n'.join(text.splitlines()[-160:]))[-14000:]
+          body = ("### INDRA AI tests failed (informational)\n\n"
+                  "The APK job is independent of this result.\n\n"
+                  "```text\n" + summary + "\n```\n")
+          payload = json.dumps({"body": body})
+          url = ("https://api.github.com/repos/" + os.environ['GITHUB_REPOSITORY']
+                 + "/commits/" + os.environ['GITHUB_SHA'] + "/comments")
+          subprocess.run(["curl", "-sS", "-X", "POST", url,
+                          "-H", "Authorization: Bearer " + os.environ['GH_TOKEN'],
+                          "-H", "Accept: application/vnd.github+json",
+                          "-H", "Content-Type: application/json",
+                          "--data-binary", "@-"],
+                         input=payload, text=True, capture_output=True)
+          PY
 
       - name: Upload test reports
         if: always()

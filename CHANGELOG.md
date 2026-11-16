@@ -1,6 +1,28 @@
 # Changelog — INDRA AI
 
-## 1.1.0 — current
+## 1.1.1 — current
+
+### Added
+- Gradle wrapper 8.7 (`gradlew`, `gradlew.bat`, `gradle/wrapper/*`) so no local Gradle install is needed.
+- GitHub Actions workflow `.github/workflows/android-build.yml`: builds the debug APK on every push,
+  verifies its contents, publishes it as the `indra-ai-debug-apk` artifact with a SHA-256, and reports
+  compile errors back as a commit comment. A separate non-blocking job runs the core/backend tests.
+- `.gitattributes` keeps `gradlew` LF and `gradlew.bat` CRLF.
+
+### Fixed
+- **The Android `data` package was missing from the repository**: the `.gitignore` entry `data/` (meant for
+  the backend's runtime folder) also matched `modules/indra-android/src/main/java/ai/indra/android/data/`,
+  so `Prefs`, `ApiClient`, `LocalStore`, `KeystoreCipher`, `SessionManager` and `DeviceIdentity` were never
+  committed. They are restored, the ignore rules are now anchored to the repository root, and the app
+  compiles.
+- `Settings.ACTION_NOTIFICATION_SETTINGS` (does not exist) replaced with
+  `android.settings.APP_NOTIFICATION_SETTINGS`.
+- `Strings.mask` → `Strings.maskSecret` in the settings screen.
+- `WhiteboardActivity.DrawingView` now takes a `Context` and calls `super(context)`.
+- Root `build.gradle` reads `VERSION` from the repository root instead of each module directory.
+- Backend dependency uses `implementation` instead of the unavailable `api` configuration.
+
+## 1.1.0
 
 ### Added
 - Android app: splash, login/register with Google + GitHub OAuth hooks (PKCE), chat with streaming,
