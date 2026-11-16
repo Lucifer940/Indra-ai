@@ -20,6 +20,7 @@ import ai.indra.core.model.ChatMessage;
 import ai.indra.core.model.Conversation;
 import ai.indra.core.model.MessageRole;
 import ai.indra.core.model.Persona;
+import ai.indra.core.util.Log;
 import ai.indra.core.model.TaskItem;
 import ai.indra.core.model.User;
 import ai.indra.core.model.UserSettings;
@@ -193,6 +194,10 @@ public final class ChatService {
             } catch (java.io.IOException ignored) {
                 sse.close();
             }
+        } catch (java.io.IOException error) {
+            // The client disconnected mid-stream: nothing left to send.
+            Log.warn("ChatService", "Streaming aborted: " + error.getMessage());
+            sse.close();
         }
     }
 
