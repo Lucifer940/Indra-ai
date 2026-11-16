@@ -434,7 +434,7 @@ public final class NaturalTimeParser {
         }
         String title = message;
         title = title.replaceAll("(?i)^\\s*(hey\\s+)?(indra|इन्द्र)[,]?\\s*", "");
-        title = title.replaceAll("(?i)\\b(please\\s+)?remind me (to|that|about)?\\s*", "");
+        title = title.replaceAll("(?i)\\b(please\\s+)?remind me\\b(\\s+(to|that|about)\\b)?\\s*", "");
         title = title.replaceAll("(?i)\\b(set (a )?(reminder|alarm) (for|to)|create (a )?(reminder|task) (for|to)|add (a )?task)\\b", "");
         title = title.replaceAll("(?i)\\b(in|after)\\s+\\d{1,3}\\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|months?|years?)\\b", "");
         title = title.replaceAll("\\d{1,3}\\s*(सेकेन्ड|मिनेट|घण्टा|घन्टा|दिन|हप्ता|महिना|वर्ष)\\s*पछि", "");

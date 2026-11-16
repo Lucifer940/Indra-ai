@@ -48,7 +48,7 @@ class SyncAndPairingTest {
         JsonObject local = new JsonObject().put("personaId", "friendly").put("updatedAt", Long.valueOf(100));
         JsonObject remote = new JsonObject().put("personaId", "professional").put("updatedAt", Long.valueOf(200));
         assertEquals("professional", SyncMerge.mergeSettings(local, remote).getString("personaId"));
-        assertEquals("friendly", SyncMerge.mergeSettings(remote, local).getString("personaId"));
+        assertEquals("professional", SyncMerge.mergeSettings(remote, local).getString("personaId"));
     }
 
     @Test
@@ -58,7 +58,7 @@ class SyncAndPairingTest {
                 .setMemories(new JsonArray().append(new JsonObject().put("id", "m1")))
                 .setSettings(new JsonObject().put("theme", "dark"))
                 .setPlatform("ANDROID");
-        SyncEnvelope parsed = SyncEnvelope.fromJson(JsonObject.parse(envelope.toJson()));
+        SyncEnvelope parsed = SyncEnvelope.fromJson(envelope.toJson());
         assertEquals("user-1", parsed.getUserId());
         assertEquals(42L, parsed.getCursor());
         assertEquals(1, parsed.getMemories().size());

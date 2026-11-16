@@ -604,7 +604,7 @@ public final class SettingsScreen extends Screen {
         if (key == null || key.length() < 6) {
             return "—";
         }
-        return Strings.mask(key);
+        return Strings.maskSecret(key);
     }
 
     /** Callback for simple text dialogs. */

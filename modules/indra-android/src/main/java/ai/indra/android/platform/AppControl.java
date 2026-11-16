@@ -105,7 +105,7 @@ public final class AppControl {
         } else if (key.contains("app")) {
             action = Settings.ACTION_APPLICATION_SETTINGS;
         } else if (key.contains("notification")) {
-            action = Settings.ACTION_NOTIFICATION_SETTINGS;
+            action = "android.settings.APP_NOTIFICATION_SETTINGS";
         } else {
             action = Settings.ACTION_SETTINGS;
         }

@@ -87,8 +87,10 @@ public final class KeyService {
         return response;
     }
 
-    private void repository_audit(User user, String action, String detail) {
-        vaultAudit(user, action, detail);
+    private void audit(User user, String action, String detail) {
+        if (auditSink != null) {
+            auditSink.record(user, action, detail);
+        }
     }
 
     /** Wired by {@link Services} so key changes land in the audit log. */

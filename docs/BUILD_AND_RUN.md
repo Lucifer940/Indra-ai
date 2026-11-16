@@ -1,8 +1,8 @@
 # Build and run INDRA AI
 
-Everything below assumes **JDK 17 or newer** and **Gradle 8.x** on your PATH. The repository contains no
-Gradle wrapper jar (it could not be downloaded in the authoring environment), so use your installed
-`gradle` command, or generate a wrapper once with `gradle wrapper --gradle-version 8.7`.
+Everything below assumes **JDK 17 or newer**. The repository ships the **Gradle 8.7 wrapper**
+(`gradlew`, `gradlew.bat`, `gradle/wrapper/*`), so no local Gradle installation is required — just use
+`./gradlew` (macOS/Linux/Git Bash) or `gradlew.bat` (Windows). The wrapper downloads Gradle 8.7 on first use.
 
 | Component | Requirement |
 |---|---|
@@ -16,7 +16,7 @@ Gradle wrapper jar (it could not be downloaded in the authoring environment), so
 
 ```bash
 cd modules/indra-backend
-gradle fatJar --no-daemon          # produces build/libs/indra-backend-all.jar
+./gradlew fatJar          # produces build/libs/indra-backend-all.jar
 java -jar build/libs/indra-backend-all.jar version
 java -jar build/libs/indra-backend-all.jar serve
 ```
@@ -88,14 +88,14 @@ work; the clients only need `https://` in their server field.
 
 ```bash
 cd modules/indra-desktop
-gradle run
+./gradlew run
 ```
 
 Or build a runnable jar that bundles `indra-core`:
 
 ```bash
-gradle jar
-java -jar build/libs/indra-desktop-1.1.0.jar
+./gradlew jar
+java -jar build/libs/indra-desktop-1.1.1.jar
 ```
 
 Notes:
@@ -127,7 +127,7 @@ Release build (you must create your own keystore — none is included):
 
 ```bash
 keytool -genkeypair -v -keystore indra-release.jks -alias indra -keyalg RSA -keysize 2048 -validity 10000
-gradle assembleRelease \
+./gradlew assembleRelease \
   -PINDRA_KEYSTORE=../indra-release.jks -PINDRA_KEY_ALIAS=indra \
   -PINDRA_KEYSTORE_PASSWORD=*** -PINDRA_KEY_PASSWORD=***
 ```
@@ -150,9 +150,9 @@ SMS/phone (only when you confirm). Each is optional and only requested when the 
 ## 4. Tests
 
 ```bash
-gradle test                            # core unit tests + backend integration tests
-gradle :indra-core:test                # core only
-gradle :indra-backend:test             # end-to-end HTTP tests (temp data dir, free port)
+./gradlew test                         # core unit tests + backend integration tests
+./gradlew :indra-core:test             # core only
+./gradlew :indra-backend:test          # end-to-end HTTP tests (temp data dir, free port)
 ```
 
 Android has no instrumented tests in this repository; UI behaviour is exercised manually per
@@ -160,10 +160,24 @@ Android has no instrumented tests in this repository; UI behaviour is exercised 
 
 ---
 
-## 5. Packaging
+## 5. Continuous integration (no local toolchain needed)
+
+`.github/workflows/android-build.yml` runs on every push and pull request:
+
+1. JDK 17 (Temurin) and the runner's Android SDK 34 / build-tools 34.0.0.
+2. `./gradlew :indra-android:assembleDebug` with a warm Gradle cache.
+3. The APK is sanity-checked (must contain `classes.dex`, `AndroidManifest.xml` and `res/`) and uploaded as
+   the **`indra-ai-debug-apk`** artifact, together with `apk-sha256.txt`.
+4. A second, non-blocking job runs the core and backend test suites; its result never hides a buildable app.
+   If compilation fails, the relevant Gradle lines are posted back as a commit comment for easy reading.
+
+Download the artifact from **Actions → Android build → latest run**, unzip it, then
+`adb install -r indra-android-debug.apk`.
+
+## 6. Packaging
 
 ```bash
-bash scripts/make-release-zip.sh       # dist/indra-ai-v1.1.0-source.zip
+bash scripts/make-release-zip.sh       # dist/indra-ai-v1.1.1-source.zip
 ```
 
 The release script excludes build outputs, `node_modules`, IDE folders and any file matching `*.env`,

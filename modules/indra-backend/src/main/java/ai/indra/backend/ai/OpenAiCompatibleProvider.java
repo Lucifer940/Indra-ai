@@ -147,6 +147,12 @@ public final class OpenAiCompatibleProvider implements AiProvider {
                     "Streaming failed: " + error.getMessage(), 0, error);
             listener.onError(wrapped);
             throw wrapped;
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            AiProviderException wrapped = new AiProviderException(AiProviderException.Kind.NETWORK,
+                    "Streaming was interrupted", 0, error);
+            listener.onError(wrapped);
+            throw wrapped;
         }
     }
 

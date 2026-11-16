@@ -34,7 +34,7 @@ class RemoteConfigTest {
                 .setGoogleLoginEnabled(true)
                 .setGithubLoginEnabled(true)
                 .setMemoryEnabled(false);
-        RemoteConfig parsed = RemoteConfig.fromJson(JsonObject.parse(config.toJson()));
+        RemoteConfig parsed = RemoteConfig.fromJson(config.toJson());
         assertTrue(parsed.isGoogleLoginEnabled());
         assertTrue(parsed.isGithubLoginEnabled());
         assertFalse(parsed.isMemoryEnabled());

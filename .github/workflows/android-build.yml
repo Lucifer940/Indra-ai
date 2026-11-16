@@ -1,0 +1,263 @@
+# INDRA AI - build the Android debug APK on every push.
+# The APK is published as a workflow artifact, so no local Android SDK is needed
+# to obtain an installable build.
+name: Android build
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to post a build-log comment when compilation fails
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: >-
+    -Dorg.gradle.daemon=false
+    -Dorg.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+    -Dorg.gradle.parallel=true
+
+jobs:
+  apk:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # The ubuntu-latest image ships an Android SDK. Use it directly instead of a
+      # third-party setup action, which also avoids an extra download.
+      - name: Prepare Android SDK 34
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK" ]; then
+            echo "::error::No Android SDK found at $SDK"
+            exit 1
+          fi
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "SDK contents:"; ls "$SDK" || true
+          echo "Platforms before:"; ls "$SDK/platforms" || true
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKM" ]; then
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+            yes | "$SDKM" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || \
+              "$SDKM" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          else
+            echo "::warning::sdkmanager not found; relying on the preinstalled platform 34"
+          fi
+          echo "Platforms after:"; ls "$SDK/platforms" || true
+          echo "Build-tools after:"; ls "$SDK/build-tools" || true
+          test -d "$SDK/platforms/android-34" || { echo "::error::platforms;android-34 is missing"; exit 1; }
+          test -d "$SDK/build-tools/34.0.0" || echo "::warning::build-tools 34.0.0 missing (AGP may pick another 34.x)"
+
+      - name: Set up Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+          cache-read-only: false
+
+      - name: Show toolchain versions
+        run: |
+          chmod +x gradlew
+          ./gradlew --version
+          java -version
+
+      - name: Assemble debug APK
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew :indra-android:assembleDebug -Pandroid --no-daemon --stacktrace 2>&1 | tee build.log
+
+      # GitHub does not always expose raw job logs to tooling, so the important
+      # lines are also posted as a commit comment where they are easy to read.
+      - name: Publish build errors
+        if: steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess
+
+          text = open('build.log', errors='replace').read()
+          lines = text.splitlines()
+          keep = []
+          for i, line in enumerate(lines):
+              if re.search(r'error:|e: |FAILURE:|What went wrong|Caused by|Could not resolve|Execution failed|> Task ', line):
+                  keep.append(line)
+          tail = '\n'.join(keep[-180:]) if keep else '\n'.join(lines[-180:])
+          summary = tail[-14000:]
+          body = ("### INDRA AI build failed\n\n"
+                  "Relevant lines from `./gradlew :indra-android:assembleDebug`:\n\n"
+                  "```text\n" + summary + "\n```\n")
+          payload = json.dumps({"body": body})
+          repo = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['GITHUB_SHA']
+          url = f"https://api.github.com/repos/{repo}/commits/{sha}/comments"
+          result = subprocess.run(
+              ["curl", "-sS", "-X", "POST", url,
+               "-H", f"Authorization: Bearer {os.environ['GH_TOKEN']}",
+               "-H", "Accept: application/vnd.github+json",
+               "-H", "Content-Type: application/json",
+               "--data-binary", "@-"],
+              input=payload, text=True, capture_output=True)
+          print(result.stdout[:500])
+          if result.returncode != 0:
+              print(result.stderr[:500])
+          PY
+
+      - name: Fail the job if compilation failed
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error::Android compilation failed - see the commit comment for the error lines."
+          exit 1
+
+      - name: Verify APK
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euo pipefail
+          APK=$(find modules/indra-android/build/outputs/apk/debug -name '*.apk' -print -quit)
+          if [ -z "$APK" ]; then
+            echo "::error::Gradle finished but produced no APK"
+            exit 1
+          fi
+          echo "APK: $APK"
+          ls -lh "$APK"
+          sha256sum "$APK" | tee apk-sha256.txt
+          # Sanity-check that it is a real Android package and not an empty archive.
+          unzip -l "$APK" | grep -q "classes.dex" || { echo "::error::APK has no classes.dex"; exit 1; }
+          unzip -l "$APK" | grep -q "AndroidManifest.xml" || { echo "::error::APK has no manifest"; exit 1; }
+          unzip -l "$APK" | grep -q "res/" || { echo "::error::APK has no resources"; exit 1; }
+
+      - name: Upload APK artifact
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: indra-ai-debug-apk
+          path: |
+            modules/indra-android/build/outputs/apk/debug/*.apk
+            apk-sha256.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-reports
+          path: |
+            modules/indra-android/build/reports/**
+            modules/indra-android/build/outputs/logs/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  tests:
+    name: Core and backend tests
+    # Tests run in their own job so the APK artifact is still published even when
+    # the suite is red, while a red suite still turns the whole run red.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+
+      - name: Run unit and integration tests
+        id: tests
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew :indra-core:test :indra-backend:test --no-daemon --stacktrace 2>&1 | tee tests.log
+
+      - name: Publish test failures
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess
+
+          text = open('tests.log', errors='replace').read()
+          keep = [line for line in text.splitlines()
+                  if re.search(r'error:|FAILED|What went wrong|Caused by|expected:|but was:|Execution failed', line)]
+          summary = ('\n'.join(keep[-160:]) if keep else '\n'.join(text.splitlines()[-160:]))[-14000:]
+          body = ("### INDRA AI tests failed\n\n"
+                  "```text\n" + summary + "\n```\n")
+          payload = json.dumps({"body": body})
+          url = ("https://api.github.com/repos/" + os.environ['GITHUB_REPOSITORY']
+                 + "/commits/" + os.environ['GITHUB_SHA'] + "/comments")
+          subprocess.run(["curl", "-sS", "-X", "POST", url,
+                          "-H", "Authorization: Bearer " + os.environ['GH_TOKEN'],
+                          "-H", "Accept: application/vnd.github+json",
+                          "-H", "Content-Type: application/json",
+                          "--data-binary", "@-"],
+                         input=payload, text=True, capture_output=True)
+          PY
+
+      - name: Summarise test results
+        if: always()
+        run: |
+          chmod +x gradlew || true
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+          total = failures = errors = skipped = 0
+          for path in glob.glob('modules/*/build/test-results/test/*.xml'):
+              try:
+                  root = ET.parse(path).getroot()
+              except Exception:
+                  continue
+              total += int(root.get('tests') or 0)
+              failures += int(root.get('failures') or 0)
+              errors += int(root.get('errors') or 0)
+              skipped += int(root.get('skipped') or 0)
+          line = ("tests: %d, failures: %d, errors: %d, skipped: %d"
+                  % (total, failures, errors, skipped))
+          print(line)
+          with open('test-summary.txt', 'w') as handle:
+              handle.write(line + "\n")
+          summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_path:
+              with open(summary_path, 'a') as handle:
+                  handle.write("### Unit and integration tests\n\n" + line + "\n")
+          PY
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            modules/indra-core/build/reports/tests/**
+            modules/indra-backend/build/reports/tests/**
+            test-summary.txt
+          if-no-files-found: ignore
+          retention-days: 7

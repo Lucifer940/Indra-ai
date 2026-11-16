@@ -3,9 +3,9 @@
 ## Automated
 
 ```bash
-gradle test                     # everything
-gradle :indra-core:test         # 11 unit-test classes, no network needed
-gradle :indra-backend:test      # ApiIntegrationTest: real HTTP against a temp data directory
+./gradlew test                  # everything (uses the committed Gradle 8.7 wrapper)
+./gradlew :indra-core:test      # 92 tests in 11 classes, no network needed
+./gradlew :indra-backend:test   # ApiIntegrationTest: 12 scenarios of real HTTP against a temp data directory
 ```
 
 `ApiIntegrationTest` starts the actual server on a free port with `INDRA_DATA_DIR` pointed at a temporary
@@ -27,8 +27,13 @@ The core suite covers the intent classifier, natural-time parsing, recurrence ma
 prompt building, personality/mode prompts, licence key format, JSON round-trips, security helpers,
 sync merge logic and voice text normalisation.
 
-**These tests were written but not executed in the authoring environment** (no JDK available). Run them on
-your machine before relying on the results.
+**These tests run in CI on every push.** The `Core and backend tests` job in
+`.github/workflows/android-build.yml` compiles and executes `:indra-core:test` and `:indra-backend:test`; the
+run is only green when they pass, and the job publishes a `test-summary.txt` (plus JUnit HTML/XML reports in
+the `test-reports` artifact) with the executed/failed/skipped counts.
+
+They have not been executed on an Android device or a Windows machine from this repository's authoring
+environment — the manual checklists below are still the way to verify device behaviour.
 
 ## Manual checklist — Android
 

@@ -45,9 +45,35 @@ public final class SpeechSanitizer {
         out = out.replace("→", " to ");
         out = out.replace("->", " to ");
         out = out.replace("#", " number ");
+        out = out.replaceAll("https?://\\S+", " ");
         out = out.replaceAll("\\s+", " ");
         out = out.replace(" .", ".").replace(" ,", ",").replaceAll("\\s{2,}", " ").trim();
-        return out;
+        return stripUnspeakable(out);
+    }
+
+    /**
+     * Final guard: removes characters a speech engine should never read out
+     * (leftover markdown, pictographs, emoji and control characters) while keeping
+     * Latin, Devanagari and other real scripts intact.
+     */
+    private static String stripUnspeakable(String text) {
+        StringBuilder clean = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); ) {
+            int codePoint = text.codePointAt(i);
+            boolean drop = codePoint == '*' || codePoint == '`' || codePoint == '_'
+                    || codePoint == '#' || codePoint == '|'
+                    || codePoint == 0xFE0F || codePoint == 0x200D || codePoint == 0x20E3
+                    || (codePoint >= 0x1F000 && codePoint <= 0x1FAFF)
+                    || (codePoint >= 0x2600 && codePoint <= 0x27BF)
+                    || (codePoint >= 0x2B00 && codePoint <= 0x2BFF)
+                    || (codePoint >= 0x2190 && codePoint <= 0x21FF)
+                    || Character.getType(codePoint) == Character.CONTROL;
+            if (!drop) {
+                clean.appendCodePoint(codePoint);
+            }
+            i += Character.charCount(codePoint);
+        }
+        return clean.toString().replaceAll("\\s+", " ").trim();
     }
 
     /** Splits text into TTS-friendly chunks of at most {@code maxChars}. */

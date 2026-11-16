@@ -73,6 +73,21 @@ public class JsonArray extends ArrayList<Object> {
         return value == null ? fallback : String.valueOf(value);
     }
 
+    public double getDouble(int index, double fallback) {
+        Object value = index >= 0 && index < size() ? get(index) : null;
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Double.parseDouble(((String) value).trim());
+            } catch (NumberFormatException error) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
     public long getLong(int index, long fallback) {
         Object value = index >= 0 && index < size() ? get(index) : null;
         if (value instanceof Number) {
