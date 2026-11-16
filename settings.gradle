@@ -1,0 +1,42 @@
+/*
+ * INDRA AI - Gradle multi-module build
+ * Creator: Umesh Chaudhary
+ */
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'indra-ai'
+
+include ':indra-core'
+include ':indra-backend'
+include ':indra-desktop'
+// The Android module is included only when the Android SDK is available so that
+// desktop/backend development works on machines without the SDK installed.
+if (file('modules/indra-android/build.gradle').exists()) {
+    def hasSdk = System.getenv('ANDROID_HOME') != null || System.getenv('ANDROID_SDK_ROOT') != null
+    hasSdk = hasSdk || file('local.properties').exists() || gradle.startParameter.projectProperties.containsKey('android')
+    if (hasSdk) {
+        include ':indra-android'
+    } else {
+        logger.lifecycle('INDRA AI: Android SDK not found - skipping :indra-android (set ANDROID_HOME to include it).')
+    }
+}
+
+project(':indra-core').projectDir = file('modules/indra-core')
+project(':indra-backend').projectDir = file('modules/indra-backend')
+project(':indra-desktop').projectDir = file('modules/indra-desktop')
+if (findProject(':indra-android') != null) {
+    project(':indra-android').projectDir = file('modules/indra-android')
+}

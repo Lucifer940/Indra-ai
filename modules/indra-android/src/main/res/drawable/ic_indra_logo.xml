@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- INDRA AI mark: an open eye inside a hexagonal core. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,10 L88,30 L88,70 L54,90 L20,70 L20,30 Z"
+        android:strokeWidth="3"
+        android:strokeColor="#5B8CFF"
+        android:fillColor="#0E1730" />
+    <path
+        android:pathData="M34,52 C42,42 66,42 74,52 C66,62 42,62 34,52 Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#8AB4FF"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,46 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0"
+        android:fillColor="#8A5BFF" />
+    <path
+        android:pathData="M54,64 L54,76"
+        android:strokeWidth="2"
+        android:strokeColor="#2A3A6B" />
+</vector>

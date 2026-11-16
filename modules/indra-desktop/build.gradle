@@ -1,0 +1,35 @@
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin'
+}
+
+description = 'INDRA AI desktop assistant for Windows (JavaFX)'
+
+javafx {
+    version = '21'
+    modules = ['javafx.controls', 'javafx.graphics']
+}
+
+application {
+    mainClass = 'ai.indra.desktop.DesktopApp'
+    // The launcher stub is required when the app is packaged as a fat jar.
+    applicationDefaultJvmArgs = ['-Dfile.encoding=UTF-8']
+}
+
+dependencies {
+    implementation project(':indra-core')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'ai.indra.desktop.Launcher',
+                'Implementation-Title': 'INDRA AI Desktop',
+                'Implementation-Version': project.version
+        )
+    }
+    // Bundle the shared core classes so the jar can be launched next to the backend jar.
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

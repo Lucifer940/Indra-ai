@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tokens, keys and memories must never leave the device through backups. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="database" path="indra.db" />
+    <exclude domain="database" path="indra.db-journal" />
+    <exclude domain="database" path="indra.db-wal" />
+    <exclude domain="file" path="keys/" />
+</full-backup-content>

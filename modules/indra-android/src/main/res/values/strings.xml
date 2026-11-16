@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">INDRA AI</string>
+    <string name="creator">Umesh Chaudhary</string>
+    <string name="tagline">Your personal AI assistant</string>
+    <string name="wake_service_description">Listens for the word \"Indra\" so you can talk hands-free. A notification is always shown while the microphone is active.</string>
+    <string name="notification_channel_voice">Voice assistant</string>
+    <string name="notification_channel_reminders">Reminders</string>
+    <string name="notification_channel_service">Background service</string>
+
+    <string name="login_title">Welcome back</string>
+    <string name="login_subtitle">Sign in to continue with INDRA AI</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="display_name">Your name</string>
+    <string name="sign_in">Sign in</string>
+    <string name="create_account">Create account</string>
+    <string name="continue_google">Continue with Google</string>
+    <string name="continue_github">Continue with GitHub</string>
+    <string name="logout">Sign out</string>
+    <string name="chat_hint">Ask Indra anything…</string>
+    <string name="send">Send</string>
+    <string name="listening">Listening…</string>
+    <string name="thinking">Thinking…</string>
+    <string name="speaking">Speaking…</string>
+    <string name="stop">Stop</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="save">Save</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="history_title">Conversation history</string>
+    <string name="whiteboard">Whiteboard</string>
+    <string name="pair_hint">Enter the pairing code shown on your other device.</string>
+    <string name="about_legal">INDRA AI respects your privacy: no secret recording, no background camera access, official APIs only. Third-party apps (WhatsApp, Instagram, Facebook, Google Maps) are opened with your confirmation and their own rules apply.</string>
+    <string name="permission_rationale">INDRA needs a few permissions to talk, remind you and read your location for weather. You can decline any of them.</string>
+</resources>

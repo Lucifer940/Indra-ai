@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="indra_bg">#080B18</color>
+    <color name="indra_surface">#111629</color>
+    <color name="indra_surface_high">#1A2138</color>
+    <color name="indra_accent">#5B8CFF</color>
+    <color name="indra_accent_soft">#2A3A6B</color>
+    <color name="indra_secondary">#8A5BFF</color>
+    <color name="indra_text">#E9EDFF</color>
+    <color name="indra_text_dim">#9AA3C7</color>
+    <color name="indra_success">#3DD68C</color>
+    <color name="indra_warning">#FFB84D</color>
+    <color name="indra_error">#FF5C7A</color>
+</resources>
