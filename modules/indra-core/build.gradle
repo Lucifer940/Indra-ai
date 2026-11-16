@@ -1,0 +1,22 @@
+/*
+ * indra-core - shared Java core used by the backend, Android app and Windows app.
+ * ZERO third-party runtime dependencies by design: it compiles and runs on any
+ * JDK 11+ and on Android API 26+ without desugaring shims.
+ */
+plugins {
+    id 'java-library'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}

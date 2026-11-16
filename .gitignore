@@ -1,0 +1,48 @@
+# Build output
+build/
+out/
+target/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.apk
+*.aab
+*.aar
+
+# Android
+local.properties
+.cxx/
+.externalNativeBuild/
+*.jks
+*.keystore
+!debug.keystore
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets - NEVER commit these
+secrets.properties
+config/local.properties
+*.env
+.env
+*.pem
+*.p12
+indra.db
+indra.db-shm
+indra.db-wal
+data/
+logs/
+*.log
+
+# Distribution artifacts
+dist/
+*.zip

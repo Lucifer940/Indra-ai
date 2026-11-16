@@ -1,0 +1,37 @@
+/*
+ * INDRA AI - root build configuration
+ * Personal AI assistant for Android + Windows. Creator: Umesh Chaudhary.
+ */
+plugins {
+    id 'java'
+    // Android Gradle Plugin is applied only by :indra-android; versions are
+    // declared here so the android module can be included conditionally.
+    id 'com.android.application' version '8.5.2' apply false
+    id 'org.openjfx.javafxplugin' version '0.1.0' apply false
+}
+
+allprojects {
+    group = 'ai.indra'
+    version = file('VERSION').text.trim()
+}
+
+subprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs << '-Xlint:all' << '-Xlint:-serial'
+    }
+    tasks.withType(Test).configureEach {
+        testLogging {
+            events 'passed', 'skipped', 'failed'
+            exceptionFormat 'full'
+        }
+    }
+}
+
+// Convenience: build every runnable artifact and the source distribution.
+tasks.register('dist') {
+    dependsOn ':indra-core:jar', ':indra-backend:jar', ':indra-desktop:jar'
+    doLast {
+        println "INDRA AI ${project.version} built. Launch with: ./gradlew :indra-backend:run"
+    }
+}

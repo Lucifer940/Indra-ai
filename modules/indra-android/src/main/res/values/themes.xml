@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Indra" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:statusBarColor">@color/indra_bg</item>
+        <item name="android:navigationBarColor">@color/indra_bg</item>
+        <item name="android:windowBackground">@color/indra_bg</item>
+        <item name="colorPrimary">@color/indra_accent</item>
+        <item name="colorSecondary">@color/indra_secondary</item>
+        <item name="android:textColorPrimary">@color/indra_text</item>
+        <item name="android:textColorSecondary">@color/indra_text_dim</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+    </style>
+
+    <style name="Theme.Indra.Splash" parent="Theme.Indra">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+
+    <style name="Theme.Indra.Light" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/indra_accent</item>
+        <item name="colorSecondary">@color/indra_secondary</item>
+        <item name="android:windowBackground">#F7F8FC</item>
+    </style>
+</resources>

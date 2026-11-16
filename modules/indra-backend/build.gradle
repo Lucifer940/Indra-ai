@@ -1,0 +1,59 @@
+/*
+ * indra-backend - REST API + AI gateway for INDRA AI.
+ *
+ * Runs on a plain JDK 17 using the built-in com.sun.net.httpserver server, so
+ * there is no heavyweight framework to configure or patch. Persistence is a
+ * pluggable document store: file-based by default, SQLite/PostgreSQL when
+ * INDRA_DB_URL is set.
+ */
+plugins {
+    id 'application'
+    id 'java'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+application {
+    mainClass = 'ai.indra.backend.Main'
+    applicationDefaultJvmArgs = ['-Dfile.encoding=UTF-8']
+}
+
+dependencies {
+    api project(':indra-core')
+
+    // JDBC drivers are only needed when INDRA_DB_URL is configured.
+    implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
+    implementation 'org.postgresql:postgresql:42.7.3'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    // Integration tests use a temporary data directory and an in-process stub AI server.
+    systemProperty 'java.awt.headless', 'true'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'ai.indra.backend.Main',
+                   'Implementation-Title': 'INDRA AI Backend',
+                   'Implementation-Version': project.version
+    }
+}
+
+tasks.register('fatJar', Jar) {
+    archiveClassifier = 'all'
+    archiveFileName = 'indra-backend-all.jar'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest { attributes 'Main-Class': 'ai.indra.backend.Main' }
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.findAll { it.name.endsWith('jar') }.collect { zipTree(it) }
+    }
+}
