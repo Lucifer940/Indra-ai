@@ -4,6 +4,8 @@ import android.content.Context;
 import android.os.Build;
 import android.provider.Settings;
 
+import ai.indra.android.IndraApp;
+
 import java.util.Locale;
 import java.util.TimeZone;
 
