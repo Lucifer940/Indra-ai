@@ -22,7 +22,7 @@ application {
 }
 
 dependencies {
-    api project(':indra-core')
+    implementation project(':indra-core')
 
     // JDBC drivers are only needed when INDRA_DB_URL is configured.
     implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
