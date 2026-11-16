@@ -1,6 +1,32 @@
 # Changelog — INDRA AI
 
-## 1.2.0 — current
+## 1.3.0 — current
+
+### Added
+- **Brand identity.** The supplied INDRA AI artwork is now the launcher icon (all densities,
+  round + adaptive foreground), the in-app header logo, the splash artwork and the orb core.
+  Tagline is "YOUR PERSONAL AI ASSISTANT".
+- **Premium light theme** (default) with a crimson/pink/violet/electric-blue palette, hairline
+  glass cards, gradient primary buttons, circular icon buttons and a dark variant. Theme is
+  switchable in Settings → Appearance and applied at startup (`UiKit.applyTheme`).
+- **New Home screen** (`HomeScreen`): logo header, notification and settings shortcuts, large
+  animated aura orb, personalised greeting, composer with attachment shortcut, "More" cards
+  (Voice Mode, Memory, Triggers, AI Aura) and a quick-tools card (whiteboard, weather, history,
+  API keys). Every control opens a feature that exists.
+- **AI Aura**: six orb looks (Energy, Galaxy, Fire, Crystal, Neon, Aurora) plus animation speed,
+  drawn by `AuraOrbView` (rotating sweep, breathing rings, speaking pulse) and saved per device.
+- **Five-tab shell**: Home / Chat / Voice / Triggers / Settings with a floating microphone that
+  is always one tap from listening. Memory stays reachable from Home and Settings.
+- Notifications panel (upcoming reminders + system notification settings) from the Home bell.
+
+### Fixed
+- **Login from Settings**: an account is no longer a one-way door. Settings → Account shows
+  *Sign in or create account* for device sessions (and *Switch account* otherwise), and the
+  login screen can now be opened on top of an existing session (`EXTRA_FORCE_SHOW`), returning
+  to a rebuilt main screen afterwards.
+- Orb animation stops when the view is off-screen instead of redrawing forever.
+
+## 1.2.0
 
 ### Added
 - **The backend now runs inside the Android app.** `indra-backend` is a dependency of the app and

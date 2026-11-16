@@ -1451,6 +1451,11 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    /** Public alias used by the Settings screen. */
+    public void showAuraSpeedDialog() {
+        showAuraSpeed();
+    }
+
     private void showAuraSpeed() {
         final String[] labels = {"Calm (0.6x)", "Balanced (1.0x)", "Lively (1.5x)", "Cinematic (2.0x)"};
         final float[] speeds = {0.6f, 1.0f, 1.5f, 2.0f};

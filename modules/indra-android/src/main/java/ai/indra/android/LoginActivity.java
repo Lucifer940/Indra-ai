@@ -18,7 +18,6 @@ import ai.indra.android.data.ApiClient;
 import ai.indra.android.local.LocalBackend;
 import ai.indra.android.data.Prefs;
 import ai.indra.android.data.SessionManager;
-import ai.indra.android.ui.CharacterView;
 import ai.indra.android.ui.UiKit;
 import ai.indra.core.json.JsonObject;
 import ai.indra.core.util.Log;
@@ -69,9 +68,11 @@ public class LoginActivity extends AppCompatActivity {
         LinearLayout column = UiKit.screen(this, 22);
         column.setBackgroundColor(UiKit.BG);
 
-        CharacterView character = new CharacterView(this);
-        column.addView(character, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-                UiKit.dp(this, 200)));
+        android.widget.ImageView logo = new android.widget.ImageView(this);
+        logo.setImageResource(R.drawable.indra_character);
+        logo.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        column.addView(logo, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                UiKit.dp(this, 190)));
 
         TextView title = UiKit.title(this, getString(R.string.login_title));
         title.setGravity(android.view.Gravity.CENTER);

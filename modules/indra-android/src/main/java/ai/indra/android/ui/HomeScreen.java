@@ -32,6 +32,7 @@ public final class HomeScreen extends Screen {
         super(host);
         this.orb = new AuraOrbView(host);
         this.orb.setAura(AuraStyle.fromId(host.prefs().getAuraStyle()));
+        this.orb.setSpeed(host.prefs().getAuraSpeed());
     }
 
     @Override

@@ -43,6 +43,7 @@ public final class AuraOrbView extends View {
     private State state = State.IDLE;
     private float mouthLevel;
     private long startedAt = SystemClock.uptimeMillis();
+    private float userSpeed = 1f;
     private Bitmap logo;
 
     public AuraOrbView(Context context) {
@@ -59,6 +60,11 @@ public final class AuraOrbView extends View {
         } catch (RuntimeException error) {
             logo = null;
         }
+    }
+
+    /** User preference from the Aura settings (0.4 - 2.0). */
+    public void setSpeed(float speed) {
+        this.userSpeed = Math.max(0.4f, Math.min(2f, speed));
     }
 
     public void setAura(AuraStyle style) {
@@ -98,6 +104,7 @@ public final class AuraOrbView extends View {
 
         float speed;
         float intensity;
+        float baseSpeed = userSpeed;
         switch (state) {
             case LISTENING:
                 speed = 1.6f;
@@ -116,6 +123,7 @@ public final class AuraOrbView extends View {
                 intensity = 0.85f;
                 break;
         }
+        speed *= baseSpeed;
 
         // 1. Wide soft glow behind the orb.
         int glowColor = UiKit.withAlpha(aura.getMiddle(), (int) (70 * intensity));
@@ -183,7 +191,17 @@ public final class AuraOrbView extends View {
             canvas.drawCircle(cx, cy, pulse, haloPaint);
         }
 
-        postInvalidateOnAnimation();
+        // Only animate while visible: an off-screen orb must not burn battery.
+        if (isAttachedToWindow() && isShown()) {
+            postInvalidateOnAnimation();
+        }
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        startedAt = SystemClock.uptimeMillis();
+        invalidate();
     }
 
     private float mouthLevelGoal() {

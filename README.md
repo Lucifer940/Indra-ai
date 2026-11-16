@@ -105,6 +105,20 @@ signed with your key; otherwise CI generates a throw-away key for that run (inst
 build signed with a different key cannot update it — add the secrets for a stable identity). No key is
 ever committed.
 
+## Look and feel
+
+Premium light theme by default (dark available in Settings → Appearance): white surfaces, crimson
+`#FF2B4E` primary, pink, violet and electric-blue accents, hairline cards with soft shadows, gradient
+primary actions and a holographic orb built from the INDRA character mark.
+
+- **Home** — logo header, notification + settings shortcuts, animated aura orb, greeting, composer,
+  quick-action cards for Voice, Memory, Triggers and AI Aura.
+- **AI Aura** — six looks (Energy, Galaxy, Fire, Crystal, Neon, Aurora) and four animation speeds,
+  saved per device.
+- **Bottom navigation** — Home · Chat · Voice · Triggers · Settings, with a floating microphone.
+- Brand artwork lives in `modules/indra-android/src/main/res/drawable-nodpi/` (logo, character) and
+  the launcher icons in `mipmap-*`; the full-size asset used to generate them is kept out of the APK.
+
 ## Run it on the phone — no PC, no account, no server
 
 The phone is self-contained: `indra-backend`, the very same module that runs on a PC, is embedded in the

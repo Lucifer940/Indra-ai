@@ -224,7 +224,7 @@ public final class SettingsScreen extends Screen {
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        host.showAuraPicker();
+                        host.showAuraSpeedDialog();
                     }
                 }));
         column.addView(valueRow("Theme",
