@@ -169,6 +169,138 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  release:
+    name: Release APK + AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Prepare Android SDK 34
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          test -d "$SDK"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKM" ]; then
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+            yes | "$SDKM" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+          fi
+
+      - name: Set up Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+
+      # Signing keys are never committed. Repository secrets win; without them a
+      # throw-away key is generated so the artifacts are still installable. An APK
+      # signed with the throw-away key cannot update an install signed by another
+      # key - add the four INDRA_* signing secrets for a stable identity.
+      - name: Prepare signing key
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.INDRA_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.INDRA_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.INDRA_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.INDRA_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/signing"
+          mkdir -p "$WORK"
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$WORK/indra.jks"
+            STORE_PATH="$WORK/indra.jks"
+            STORE_PASS="${STORE_PASSWORD:?INDRA_KEYSTORE_PASSWORD must be set with the keystore}"
+            ALIAS="${KEY_ALIAS:?INDRA_KEY_ALIAS must be set with the keystore}"
+            KEY_PASS="${KEY_PASSWORD:-$STORE_PASS}"
+            echo "Using the keystore supplied through repository secrets."
+            echo "source=secrets" >> "$GITHUB_OUTPUT"
+          else
+            STORE_PASS="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"
+            ALIAS="indra-ci"
+            KEY_PASS="$STORE_PASS"
+            STORE_PATH="$WORK/indra-ci.p12"
+            keytool -genkeypair -v -keystore "$STORE_PATH" -alias "$ALIAS" \
+              -keyalg RSA -keysize 4096 -validity 10000 -storetype PKCS12 \
+              -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
+              -dname "CN=INDRA AI CI, O=INDRA AI, C=NP" > /dev/null 2>&1
+            echo "::warning::No signing secrets found - generated a throw-away CI key for this run."
+            echo "source=generated" >> "$GITHUB_OUTPUT"
+          fi
+          test -s "$STORE_PATH"
+          echo "INDRA_KEYSTORE_PATH=$STORE_PATH" >> "$GITHUB_ENV"
+          echo "INDRA_KEYSTORE_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
+          echo "INDRA_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+          echo "INDRA_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+          echo "Keystore ready at $STORE_PATH (alias $ALIAS)"
+
+      - name: Build signed release APK and AAB
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew :indra-android:assembleRelease :indra-android:bundleRelease \
+            --no-daemon --stacktrace 2>&1 | tee release.log
+
+      - name: Publish release errors
+        if: steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          text = open('release.log', errors='replace').read()
+          keep = [line for line in text.splitlines()
+                  if re.search(r'error:|FAILED|What went wrong|Caused by|Execution failed', line)]
+          summary = ('\n'.join(keep[-160:]) if keep else '\n'.join(text.splitlines()[-160:]))[-14000:]
+          body = "### INDRA AI release build failed\n\n```text\n" + summary + "\n```\n"
+          url = ("https://api.github.com/repos/" + os.environ['GITHUB_REPOSITORY']
+                 + "/commits/" + os.environ['GITHUB_SHA'] + "/comments")
+          subprocess.run(["curl", "-sS", "-X", "POST", url,
+                          "-H", "Authorization: Bearer " + os.environ['GH_TOKEN'],
+                          "-H", "Accept: application/vnd.github+json",
+                          "-H", "Content-Type: application/json",
+                          "--data-binary", "@-"],
+                         input=json.dumps({"body": body}), text=True, capture_output=True)
+          PY
+
+      - name: Verify artifacts
+        if: steps.build.outcome == 'success'
+        run: |
+          set -euo pipefail
+          APK=$(ls modules/indra-android/build/outputs/apk/release/*.apk | head -1)
+          AAB=$(ls modules/indra-android/build/outputs/bundle/release/*.aab | head -1)
+          test -s "$APK"; test -s "$AAB"
+          cp "$APK" indra-android-release.apk
+          cp "$AAB" indra-android-release.aab
+          sha256sum indra-android-release.apk indra-android-release.aab > release-sha256.txt
+          cat release-sha256.txt
+          unzip -l indra-android-release.apk | grep -E "classes.dex|AndroidManifest.xml" | head -5
+
+      - name: Upload release artifacts
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: indra-ai-release
+          path: |
+            indra-android-release.apk
+            indra-android-release.aab
+            release-sha256.txt
+          if-no-files-found: error
+          retention-days: 30
+
   tests:
     name: Core and backend tests
     # Tests run in their own job so the APK artifact is still published even when

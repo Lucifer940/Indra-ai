@@ -2,18 +2,14 @@ package ai.indra.backend.service;
 
 import ai.indra.backend.BackendConfig;
 import ai.indra.backend.http.ApiException;
+import ai.indra.core.net.Http;
 import ai.indra.core.json.JsonArray;
 import ai.indra.core.json.JsonObject;
 import ai.indra.core.util.Strings;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 
 /**
  * Weather via Open-Meteo (no API key required) with geocoding. Results always say
@@ -22,7 +18,6 @@ import java.time.Duration;
 public final class WeatherService {
 
     private final BackendConfig config;
-    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     public WeatherService(BackendConfig config) {
         this.config = config;
@@ -103,20 +98,17 @@ public final class WeatherService {
 
     private JsonObject getJson(String url) {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofSeconds(20))
-                    .header("User-Agent", "IndraAI/1.1.0")
-                    .GET().build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new ApiException(502, "weather_unavailable",
-                        "The weather service is unavailable right now (status " + response.statusCode() + ")");
+            Http.Response response = Http.get(url, 20000, "User-Agent", "IndraAI/1.2.0");
+            try {
+                if (!response.isSuccessful()) {
+                    throw new ApiException(502, "weather_unavailable",
+                            "The weather service is unavailable right now (status " + response.statusCode() + ")");
+                }
+                return JsonObject.parse(response.body());
+            } finally {
+                response.close();
             }
-            return JsonObject.parse(response.body());
-        } catch (IOException | InterruptedException error) {
-            if (error instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (IOException error) {
             throw new ApiException(502, "weather_unavailable", "I can't reach the weather service right now");
         }
     }

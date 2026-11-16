@@ -60,9 +60,17 @@ public final class ApiApplication {
     private final HttpServerApp http;
 
     public ApiApplication(BackendConfig config) {
+        this(config, ai.indra.backend.store.FileCodec.PLAIN);
+    }
+
+    /**
+     * @param fileCodec optional at-rest encryption for the file store (Android
+     *                  passes a Keystore-backed codec so on-device data is encrypted)
+     */
+    public ApiApplication(BackendConfig config, ai.indra.backend.store.FileCodec fileCodec) {
         this.config = config;
         Log.setMinimum(config.isDebug() ? Log.Level.DEBUG : Log.Level.INFO);
-        this.store = Stores.create(config);
+        this.store = Stores.create(config, fileCodec);
         this.repository = new Repository(store);
         this.vault = new ApiKeyVault(new RepositoryKeyStore(repository), new AesSecretCipher(config.getMasterKey()));
 
@@ -104,6 +112,15 @@ public final class ApiApplication {
     public void stop() {
         http.stop();
         store.close();
+    }
+
+    /** Port actually bound; when the config asked for port 0 the OS chose one. */
+    public int getPort() {
+        return http.getPort();
+    }
+
+    public boolean isRunning() {
+        return http.isRunning();
     }
 
     public BackendConfig getConfig() {
@@ -170,6 +187,18 @@ public final class ApiApplication {
         });
 
         // ------------------------------------------------------------- auth
+        // On-device backend only: opens a session for this phone without an email
+        // account. It exists so the app is usable immediately after install; real
+        // accounts (and the licence) can be added later without losing data.
+        if (config.isLocalMode()) {
+            router.post("/api/v1/auth/local", Router.Auth.PUBLIC, new Handler() {
+                @Override
+                public Response handle(RequestContext context) {
+                    return Response.ok(authService.localSession(context.body()));
+                }
+            });
+        }
+
         router.post("/api/v1/auth/register", Router.Auth.PUBLIC, new Handler() {
             @Override
             public Response handle(RequestContext context) {

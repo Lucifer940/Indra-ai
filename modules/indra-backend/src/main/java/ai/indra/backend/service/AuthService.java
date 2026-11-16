@@ -70,6 +70,43 @@ public final class AuthService implements HttpServerApp.Authenticator {
         }
     }
 
+    /**
+     * Device session for the on-device backend ("continue without an account").
+     *
+     * <p>The account is derived from the installation's device id, gets a random
+     * password that is never shown or stored, and can later be upgraded by setting
+     * an email and password through the normal account screen. Nothing secret is
+     * hard-coded: the password is generated per install and only its hash is kept.</p>
+     */
+    public JsonObject localSession(JsonObject body) {
+        if (!config.isLocalMode()) {
+            throw ApiException.forbidden("Device sessions are only available in the on-device backend");
+        }
+        String deviceId = body == null ? null : body.getString("deviceId");
+        if (Strings.isBlank(deviceId) || deviceId.length() < 8) {
+            throw ApiException.badRequest("A device id is required");
+        }
+        String digest = ai.indra.core.security.Crypto.sha256Hex(deviceId);
+        String email = "device-" + digest.substring(0, 24) + "@local.indra";
+        String displayName = body.getString("displayName", "");
+        User user = repository.findUserByEmail(email);
+        if (user == null) {
+            String generated = "local-" + digest.substring(0, 16) + "-" + ai.indra.core.util.Ids.random(24);
+            String name = Strings.isBlank(displayName) ? "INDRA user" : displayName.trim();
+            user = User.newUser(email, Validation.requireText("displayName", name, 1, 60),
+                    hasher.hash(generated));
+            user.setEmailVerified(true);
+            repository.saveUser(user);
+            repository.audit(user.getId(), "auth.local", "On-device session created", "device");
+        }
+        if (user.isDisabled()) {
+            throw ApiException.forbidden("This local account has been disabled");
+        }
+        user.setLastLoginAt(System.currentTimeMillis());
+        repository.saveUser(user);
+        return session(user);
+    }
+
     public JsonObject register(JsonObject body) {
         String email = Validation.requireEmail("email", body.getString("email"));
         String password = Validation.requirePassword("password", body.getString("password"));

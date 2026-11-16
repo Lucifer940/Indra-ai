@@ -27,6 +27,7 @@ import java.util.Map;
 public final class EmbeddedStore implements DocumentStore {
 
     private final File directory;
+    private final FileCodec codec;
     private final Map<String, Map<String, Entry>> collections = new LinkedHashMap<String, Map<String, Entry>>();
     private final Object lock = new Object();
 
@@ -60,7 +61,12 @@ public final class EmbeddedStore implements DocumentStore {
     }
 
     public EmbeddedStore(File directory) {
+        this(directory, FileCodec.PLAIN);
+    }
+
+    public EmbeddedStore(File directory, FileCodec codec) {
         this.directory = directory;
+        this.codec = codec == null ? FileCodec.PLAIN : codec;
     }
 
     @Override
@@ -79,7 +85,7 @@ public final class EmbeddedStore implements DocumentStore {
                 }
                 String collection = file.getName().substring(0, file.getName().length() - 5);
                 try {
-                    String text = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+                    String text = new String(codec.decode(Files.readAllBytes(file.toPath())), StandardCharsets.UTF_8);
                     JsonObject root = JsonObject.parseOrEmpty(text);
                     Map<String, Entry> entries = new LinkedHashMap<String, Entry>();
                     for (String id : root.keySet()) {
@@ -233,7 +239,7 @@ public final class EmbeddedStore implements DocumentStore {
         File target = new File(directory, collection + ".json");
         File temp = new File(directory, collection + ".json.tmp");
         try {
-            Files.write(temp.toPath(), payload.getBytes(StandardCharsets.UTF_8));
+            Files.write(temp.toPath(), codec.encode(payload.getBytes(StandardCharsets.UTF_8)));
             try {
                 Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING,
                         StandardCopyOption.ATOMIC_MOVE);

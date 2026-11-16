@@ -2,6 +2,7 @@ package ai.indra.android.data;
 
 import android.content.Context;
 
+import ai.indra.android.local.LocalBackend;
 import ai.indra.core.json.JsonObject;
 import ai.indra.core.util.Log;
 
@@ -78,14 +79,16 @@ public final class ApiClient {
     private final Context context;
     private final Prefs prefs;
     private final Object refreshLock = new Object();
-    private String baseUrl;
 
     public ApiClient(Context context, Prefs prefs) {
         this.context = context.getApplicationContext();
         this.prefs = prefs;
-        this.baseUrl = prefs.getBaseUrl();
     }
 
+    /**
+     * Points the app at an explicit server (a PC or a hosted deployment).
+     * A loopback address switches back to the engine embedded in this phone.
+     */
     public void setBaseUrl(String url) {
         if (url == null || url.trim().isEmpty()) {
             return;
@@ -94,12 +97,28 @@ public final class ApiClient {
         while (cleaned.endsWith("/")) {
             cleaned = cleaned.substring(0, cleaned.length() - 1);
         }
-        this.baseUrl = cleaned;
-        prefs.setBaseUrl(cleaned);
+        boolean loopback = cleaned.contains("127.0.0.1") || cleaned.contains("localhost");
+        prefs.setUseEmbeddedBackend(loopback);
+        if (!loopback) {
+            prefs.setBaseUrl(cleaned);
+        }
     }
 
+    /** Address of the on-device engine, or the configured remote server. */
     public String baseUrl() {
-        return baseUrl;
+        if (prefs.useEmbeddedBackend()) {
+            String local = LocalBackend.get(context).awaitReady(20000);
+            if (local != null) {
+                return local;
+            }
+        }
+        String remote = prefs.getBaseUrl();
+        return remote == null || remote.trim().isEmpty() ? "http://127.0.0.1:8420" : remote;
+    }
+
+    /** True when requests go to the backend running inside the phone. */
+    public boolean isLocal() {
+        return prefs.useEmbeddedBackend() && LocalBackend.get(context).baseUrl() != null;
     }
 
     // ------------------------------------------------------------- HTTP plumbing
@@ -113,7 +132,7 @@ public final class ApiClient {
     }
 
     private HttpURLConnection open(String method, String path, boolean auth) throws IOException {
-        URL url = new URL(baseUrl + path);
+        URL url = new URL(baseUrl() + path);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod(method);
         connection.setConnectTimeout(CONNECT_TIMEOUT);
@@ -147,7 +166,7 @@ public final class ApiClient {
             return text == null || text.trim().isEmpty() ? new JsonObject() : JsonObject.parseOrEmpty(text);
         } catch (IOException error) {
             throw new ApiException(0, "NETWORK_ERROR",
-                    "Cannot reach " + baseUrl + " (" + error.getMessage() + ")", null);
+                    "Cannot reach the INDRA engine (" + error.getMessage() + ")", null);
         } finally {
             connection.disconnect();
         }
@@ -176,7 +195,7 @@ public final class ApiClient {
             connection = open(method, path, auth);
             return send(connection, body);
         } catch (IOException error) {
-            throw new ApiException(0, "NETWORK_ERROR", "Cannot reach " + baseUrl, null);
+            throw new ApiException(0, "NETWORK_ERROR", "Cannot reach the INDRA engine", null);
         }
     }
 
@@ -233,6 +252,17 @@ public final class ApiClient {
     }
 
     // ------------------------------------------------------------------- auth
+
+    /**
+     * Opens a session on the on-device engine without an email account.
+     * Used by "Continue without signing in" on the login screen.
+     */
+    public JsonObject localSession(String deviceId, String displayName) throws ApiException {
+        JsonObject body = new JsonObject()
+                .put("deviceId", deviceId)
+                .put("displayName", displayName == null ? "" : displayName);
+        return execute("POST", "/api/v1/auth/local", body, false);
+    }
 
     public JsonObject login(String email, String password) throws ApiException {
         return execute("POST", "/api/v1/auth/login",

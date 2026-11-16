@@ -12,6 +12,11 @@ public final class Stores {
     }
 
     public static DocumentStore create(BackendConfig config) {
+        return create(config, FileCodec.PLAIN);
+    }
+
+    /** Creates the store, optionally encrypting every document at rest. */
+    public static DocumentStore create(BackendConfig config, FileCodec codec) {
         String url = config.getDatabaseUrl();
         if (url != null && !url.trim().isEmpty()) {
             JdbcStore store = new JdbcStore(url, config.getDatabaseUser(), config.getDatabasePassword());
@@ -19,7 +24,7 @@ public final class Stores {
             Log.info("Stores", "Using SQL storage: " + store.describe());
             return store;
         }
-        EmbeddedStore store = new EmbeddedStore(new File(config.getDataDir(), "store"));
+        EmbeddedStore store = new EmbeddedStore(new File(config.getDataDir(), "store"), codec);
         store.init();
         return store;
     }

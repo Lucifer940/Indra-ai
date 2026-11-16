@@ -57,6 +57,32 @@ public final class BackendConfig {
         return new BackendConfig(values);
     }
 
+    /**
+     * Configuration for the backend embedded inside the Android app.
+     *
+     * <p>It binds to loopback only (nothing outside the phone can connect), uses a
+     * private data directory inside the app sandbox and turns on local mode, which
+     * enables the device-session endpoint used by "continue without an account".</p>
+     *
+     * @param port 0 lets the operating system pick a free port
+     */
+    public static BackendConfig forLocalDevice(File dataDir, String bindAddress, int port, boolean debug) {
+        Map<String, String> values = new LinkedHashMap<String, String>();
+        values.put("INDRA_DATA_DIR", dataDir.getAbsolutePath());
+        values.put("INDRA_BIND", bindAddress == null ? "127.0.0.1" : bindAddress);
+        values.put("INDRA_PORT", String.valueOf(port));
+        values.put("INDRA_LOCAL_MODE", "true");
+        values.put("INDRA_DEBUG", String.valueOf(debug));
+        values.put("INDRA_RATE_LIMIT", "6000");
+        values.put("INDRA_AUTH_RATE_LIMIT", "600");
+        return new BackendConfig(values);
+    }
+
+    /** True when this backend runs inside the phone instead of on a PC. */
+    public boolean isLocalMode() {
+        return getBoolean("INDRA_LOCAL_MODE", false);
+    }
+
     private static String defaultDataDir() {
         String home = System.getProperty("user.home", ".");
         return new File(home, ".indra-ai").getAbsolutePath();

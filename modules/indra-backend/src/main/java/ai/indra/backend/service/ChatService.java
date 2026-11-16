@@ -189,6 +189,9 @@ public final class ChatService {
             persistAssistant(user, conversation, settings, bridge.text(), request.getProvider(),
                     request.getModel(), System.currentTimeMillis() - started);
         } catch (AiProviderException error) {
+            if (isNetworkProblem(error) && fallBackOffline(user, conversation, settings, request, sse)) {
+                return;
+            }
             try {
                 sse.fail(ai.indra.core.model.ApiError.PROVIDER_ERROR, describeProviderError(error));
             } catch (java.io.IOException ignored) {
@@ -198,6 +201,43 @@ public final class ChatService {
             // The client disconnected mid-stream: nothing left to send.
             Log.warn("ChatService", "Streaming aborted: " + error.getMessage());
             sse.close();
+        }
+    }
+
+    /** True for errors that mean "no usable internet", not "the key is wrong". */
+    private static boolean isNetworkProblem(AiProviderException error) {
+        AiProviderException.Kind kind = error.getKind();
+        return kind == AiProviderException.Kind.NETWORK || kind == AiProviderException.Kind.TIMEOUT;
+    }
+
+    /**
+     * Honest offline fallback: when the network is gone the on-device brain answers
+     * and the reply says so. The user is never told a cloud model replied when it
+     * did not.
+     */
+    private boolean fallBackOffline(User user, Conversation conversation, UserSettings settings,
+                                    ChatRequest request, SseResponder sse) {
+        try {
+            ChatResult fallback = new ai.indra.core.ai.OfflineProvider().complete(request);
+            String note = settings.getLanguageCode() != null
+                    && settings.getLanguageCode().startsWith("ne")
+                    ? "इन्टरनेट छैन, त्यसैले यो जवाफ फोनभित्रैको दिमागबाट आएको हो।\n\n"
+                    : "You're offline right now, so this answer comes from the on-device brain.\n\n";
+            String text = note + fallback.getText();
+            sse.event("meta", new JsonObject()
+                    .put("conversationId", conversation.getId())
+                    .put("provider", "offline-fallback")
+                    .put("offline", Boolean.TRUE));
+            sse.token(text);
+            persistAssistant(user, conversation, settings, text, "offline", "on-device", 0L);
+            sse.done(text, new JsonObject()
+                    .put("conversationId", conversation.getId())
+                    .put("offline", Boolean.TRUE)
+                    .put("shouldSpeak", Boolean.valueOf(settings.isAutoSpeak())));
+            return true;
+        } catch (Exception inner) {
+            Log.warn("ChatService", "Offline fallback failed: " + inner.getMessage());
+            return false;
         }
     }
 

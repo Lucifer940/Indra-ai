@@ -28,6 +28,27 @@ public final class SessionManager {
         return user != null && "ADMIN".equals(user.getString("role", "USER"));
     }
 
+    /**
+     * Starts the app without an account: asks the on-device engine for a device
+     * session. Everything (chat, memory, tasks, reminders) works; an email account
+     * can be added later from Settings.
+     */
+    public JsonObject continueLocally() throws ApiClient.ApiException {
+        JsonObject response = api.localSession(prefs.getDeviceId(), prefs.getDeviceName());
+        store(response);
+        return response;
+    }
+
+    /** True when the current session is the no-account device session. */
+    public boolean isLocalAccount() {
+        JsonObject user = user();
+        if (user == null) {
+            return false;
+        }
+        String email = user.getString("email", "");
+        return email.endsWith("@local.indra") || email.startsWith("device-");
+    }
+
     public JsonObject login(String email, String password) throws ApiClient.ApiException {
         JsonObject response = api.login(email, password);
         store(response);

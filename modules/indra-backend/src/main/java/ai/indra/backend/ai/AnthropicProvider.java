@@ -9,7 +9,6 @@ import ai.indra.core.ai.TokenListener;
 import ai.indra.core.json.JsonArray;
 import ai.indra.core.json.JsonObject;
 
-import java.net.http.HttpResponse;
 
 /** Anthropic Messages API client. */
 public final class AnthropicProvider implements AiProvider {
@@ -62,7 +61,7 @@ public final class AnthropicProvider implements AiProvider {
         }
         body.put("messages", messages);
 
-        HttpResponse<String> response = HttpProviderSupport.postJson(
+        HttpProviderSupport.JsonResponse response = HttpProviderSupport.postJson(
                 HttpProviderSupport.joinUrl(baseUrl, "messages"), body.toJson(),
                 "x-api-key", apiKey, "anthropic-version", "2023-06-01");
         HttpProviderSupport.checkStatus(response, "Claude");

@@ -1,75 +1,101 @@
 package ai.indra.backend.ai;
 
 import ai.indra.core.ai.AiProviderException;
+import ai.indra.core.net.Http;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpTimeoutException;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.io.InputStream;
 
-/** Shared HTTP plumbing for provider clients. */
+/**
+ * Shared HTTP plumbing for provider clients.
+ *
+ * <p>Uses {@link Http} (HttpURLConnection) instead of {@code java.net.http} so the
+ * same provider code runs on a Windows PC and inside the Android app.</p>
+ */
 final class HttpProviderSupport {
-
-    static final HttpClient CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
 
     private HttpProviderSupport() {
     }
 
-    static HttpResponse<String> postJson(String url, String body, String... headers) throws AiProviderException {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(120))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .header("User-Agent", "IndraAI/1.1.0 (+https://github.com/Lucifer940/Indra-ai)")
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-        for (int i = 0; i + 1 < headers.length; i += 2) {
-            if (headers[i] != null && headers[i + 1] != null && !headers[i + 1].isEmpty()) {
-                builder.header(headers[i], headers[i + 1]);
+    /** Buffered JSON answer. */
+    static final class JsonResponse {
+        final int status;
+        final String body;
+
+        JsonResponse(int status, String body) {
+            this.status = status;
+            this.body = body == null ? "" : body;
+        }
+
+        int statusCode() {
+            return status;
+        }
+
+        String body() {
+            return body;
+        }
+    }
+
+    /** Open streamed answer (Server-Sent Events). */
+    static final class StreamResponse {
+        final int status;
+        final InputStream stream;
+
+        StreamResponse(int status, InputStream stream) {
+            this.status = status;
+            this.stream = stream;
+        }
+
+        int status() {
+            return status;
+        }
+
+        InputStream body() {
+            return stream;
+        }
+
+        void close() {
+            try {
+                if (stream != null) {
+                    stream.close();
+                }
+            } catch (IOException ignored) {
+                // already closed
             }
         }
+    }
+
+    static JsonResponse postJson(String url, String body, String... headers) throws AiProviderException {
         try {
-            return CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        } catch (HttpTimeoutException error) {
-            throw new AiProviderException(AiProviderException.Kind.TIMEOUT, "The AI provider took too long to respond");
-        } catch (IOException error) {
-            throw new AiProviderException(AiProviderException.Kind.NETWORK,
-                    "Cannot reach the AI provider: " + error.getMessage(), 0, error);
-        } catch (InterruptedException error) {
-            Thread.currentThread().interrupt();
-            throw new AiProviderException(AiProviderException.Kind.NETWORK, "Request interrupted", 0, error);
-        }
-    }
-
-    static HttpRequest.Builder requestBuilder(String url, String... headers) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(120))
-                .header("Content-Type", "application/json")
-                .header("Accept", "text/event-stream")
-                .header("User-Agent", "IndraAI/1.1.0")
-                .POST(HttpRequest.BodyPublishers.noBody());
-        for (int i = 0; i + 1 < headers.length; i += 2) {
-            if (headers[i] != null && headers[i + 1] != null && !headers[i + 1].isEmpty()) {
-                builder.header(headers[i], headers[i + 1]);
+            Http.Response response = Http.postJson(url, body, Http.DEFAULT_READ_TIMEOUT, headers);
+            try {
+                return new JsonResponse(response.statusCode(), response.body());
+            } finally {
+                response.close();
             }
+        } catch (IOException error) {
+            throw networkError(error);
         }
-        return builder;
     }
 
-    static void checkStatus(HttpResponse<String> response, String providerLabel) throws AiProviderException {
-        int status = response.statusCode();
+    static StreamResponse postStream(String url, String body, String... headers) throws AiProviderException {
+        try {
+            Http.Response response = Http.postJson(url, body, Http.DEFAULT_READ_TIMEOUT, headers);
+            return new StreamResponse(response.statusCode(), response.stream());
+        } catch (IOException error) {
+            throw networkError(error);
+        }
+    }
+
+    static void checkStatus(JsonResponse response, String providerLabel) throws AiProviderException {
+        checkStatus(response.status, response.body, providerLabel);
+    }
+
+    static void checkStatus(int status, String body, String providerLabel) throws AiProviderException {
         if (status >= 200 && status < 300) {
             return;
         }
-        String detail = response.body() == null ? "" : response.body();
+        String detail = body == null ? "" : body;
         if (detail.length() > 400) {
             detail = detail.substring(0, 400);
         }
@@ -94,5 +120,15 @@ final class HttpProviderSupport {
     static String joinUrl(String base, String path) {
         String trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
         return trimmed + (path.startsWith("/") ? path : "/" + path);
+    }
+
+    private static AiProviderException networkError(IOException error) {
+        String message = error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
+        boolean timeout = message.toLowerCase(java.util.Locale.ROOT).contains("timed out");
+        return timeout
+                ? new AiProviderException(AiProviderException.Kind.TIMEOUT,
+                        "The AI provider took too long to respond", 0, error)
+                : new AiProviderException(AiProviderException.Kind.NETWORK,
+                        "Cannot reach the AI provider: " + message, 0, error);
     }
 }

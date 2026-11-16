@@ -44,8 +44,11 @@ public final class Prefs implements SecretCipher {
     private static final String K_OAUTH_STATE = "oauthState";
     private static final String K_OAUTH_VERIFIER = "oauthVerifier";
     private static final String K_LICENSE = "licenseKey";
+    private static final String K_USE_EMBEDDED = "useEmbeddedEngine";
+    private static final String K_LOCAL_SECRET_PREFIX = "localSecret:";
 
-    private static final String DEFAULT_BASE_URL = "http://10.0.2.2:8420";
+    /** Only used when the user points the app at an external server (e.g. a PC). */
+    private static final String DEFAULT_BASE_URL = "";
 
     private final SharedPreferences raw;
     private final SecretCipher cipher;
@@ -146,8 +149,36 @@ public final class Prefs implements SecretCipher {
 
     // ----------------------------------------------------------------- server
 
+    /** Remote server address (empty = never configured). */
     public String getBaseUrl() {
         return getSecret(K_BASE_URL, DEFAULT_BASE_URL);
+    }
+
+    /** True when the app should use the backend embedded in the phone. */
+    public boolean useEmbeddedBackend() {
+        return raw.getBoolean(K_USE_EMBEDDED, true);
+    }
+
+    public void setUseEmbeddedBackend(boolean embedded) {
+        raw.edit().putBoolean(K_USE_EMBEDDED, embedded).apply();
+    }
+
+    /**
+     * Random secret for the embedded engine's signing/encryption keys, stored
+     * encrypted with the Android Keystore key. Created once per install.
+     */
+    public String getOrCreateLocalSecret(String name) {
+        String key = K_LOCAL_SECRET_PREFIX + name;
+        String existing = getSecret(key, null);
+        if (existing != null && existing.length() >= 32) {
+            return existing;
+        }
+        byte[] random = new byte[48];
+        new java.security.SecureRandom().nextBytes(random);
+        String secret = android.util.Base64.encodeToString(random,
+                android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE);
+        putSecret(key, secret);
+        return secret;
     }
 
     public void setBaseUrl(String baseUrl) {

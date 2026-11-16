@@ -2,6 +2,7 @@ package ai.indra.backend.service;
 
 import ai.indra.backend.BackendConfig;
 import ai.indra.backend.http.ApiException;
+import ai.indra.core.net.Http;
 import ai.indra.core.json.JsonArray;
 import ai.indra.core.json.JsonObject;
 import ai.indra.core.model.AuthProvider;
@@ -10,13 +11,8 @@ import ai.indra.core.util.Log;
 import ai.indra.core.util.Strings;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 
 /**
  * Google and GitHub sign-in using the OAuth 2.0 authorisation-code flow with
@@ -29,10 +25,6 @@ public final class OAuthService {
 
     private final BackendConfig config;
     private final AuthService authService;
-    private final HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
 
     public OAuthService(BackendConfig config, AuthService authService) {
         this.config = config;
@@ -172,22 +164,17 @@ public final class OAuthService {
                 }
                 body.append(encode(key)).append('=').append(encode(String.valueOf(form.get(key))));
             }
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofSeconds(25))
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .header("Accept", "application/json")
-                    .header("User-Agent", "IndraAI/1.1.0")
-                    .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new ApiException(502, "oauth_failed", "Sign-in provider rejected the code");
+            Http.Response response = Http.postForm(url, body.toString(), 25000,
+                    "Accept", "application/json", "User-Agent", "IndraAI/1.2.0");
+            try {
+                if (!response.isSuccessful()) {
+                    throw new ApiException(502, "oauth_failed", "Sign-in provider rejected the code");
+                }
+                return JsonObject.parse(response.body());
+            } finally {
+                response.close();
             }
-            return JsonObject.parse(response.body());
-        } catch (IOException | InterruptedException error) {
-            if (error instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (IOException error) {
             throw new ApiException(502, "oauth_unavailable", "Cannot reach the sign-in provider right now");
         }
     }
@@ -199,28 +186,24 @@ public final class OAuthService {
 
     private JsonObject getJsonObject(String url, String accessToken) {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofSeconds(20))
-                    .header("Authorization", "Bearer " + accessToken)
-                    .header("Accept", "application/json")
-                    .header("User-Agent", "IndraAI/1.1.0")
-                    .GET().build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new ApiException(502, "oauth_failed", "Sign-in provider error " + response.statusCode());
+            Http.Response response = Http.get(url, 20000, "Authorization", "Bearer " + accessToken,
+                    "Accept", "application/json", "User-Agent", "IndraAI/1.2.0");
+            try {
+                if (!response.isSuccessful()) {
+                    throw new ApiException(502, "oauth_failed", "Sign-in provider error " + response.statusCode());
+                }
+                Object parsed = ai.indra.core.json.Json.parse(response.body());
+                if (parsed instanceof JsonObject) {
+                    return (JsonObject) parsed;
+                }
+                if (parsed instanceof JsonArray) {
+                    return new JsonObject().put("emails", parsed);
+                }
+                return new JsonObject();
+            } finally {
+                response.close();
             }
-            Object parsed = ai.indra.core.json.Json.parse(response.body());
-            if (parsed instanceof JsonObject) {
-                return (JsonObject) parsed;
-            }
-            if (parsed instanceof JsonArray) {
-                return new JsonObject().put("emails", parsed);
-            }
-            return new JsonObject();
-        } catch (IOException | InterruptedException error) {
-            if (error instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (IOException error) {
             throw new ApiException(502, "oauth_unavailable", "Cannot reach the sign-in provider right now");
         }
     }

@@ -12,14 +12,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
-
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 
 /** HTTP front end: routing, auth, CORS, rate limiting and error mapping. */
 public final class HttpServerApp {
@@ -36,7 +30,7 @@ public final class HttpServerApp {
     private final Authenticator authenticator;
     private final RateLimiter apiLimiter;
     private final RateLimiter authLimiter;
-    private HttpServer server;
+    private LocalHttpServer server;
 
     public HttpServerApp(Router router, BackendConfig config, Authenticator authenticator) {
         this.router = router;
@@ -47,36 +41,41 @@ public final class HttpServerApp {
     }
 
     public void start() throws IOException {
-        server = HttpServer.create(new InetSocketAddress(config.getBindAddress(), config.getPort()), 256);
-        server.createContext("/", this::handle);
-        server.setExecutor(Executors.newFixedThreadPool(16, new java.util.concurrent.ThreadFactory() {
+        server = new LocalHttpServer(config.getBindAddress(), config.getPort(), new LocalHttpServer.RequestHandler() {
             @Override
-            public Thread newThread(Runnable runnable) {
-                Thread thread = new Thread(runnable, "indra-http");
-                thread.setDaemon(true);
-                return thread;
+            public void handle(Exchange exchange) {
+                HttpServerApp.this.handle(exchange);
             }
-        }));
+        });
         server.start();
-        Log.info("HttpServerApp", "INDRA AI backend listening on " + config.getBindAddress() + ":" + config.getPort()
+        Log.info("HttpServerApp", "INDRA AI backend listening on " + config.getBindAddress() + ":" + getPort()
                 + " (" + router.size() + " routes)");
+    }
+
+    /** Port actually bound (the on-device backend asks for a free port). */
+    public int getPort() {
+        return server == null ? config.getPort() : server.getPort();
+    }
+
+    public boolean isRunning() {
+        return server != null && server.isRunning();
     }
 
     public void stop() {
         if (server != null) {
-            server.stop(1);
+            server.stop();
             server = null;
         }
     }
 
-    private void handle(HttpExchange exchange) {
+    private void handle(Exchange exchange) {
         String requestId = Ids.random(10);
         long started = System.currentTimeMillis();
         try {
             String method = exchange.getRequestMethod();
             String path = exchange.getRequestURI().getPath();
             Map<String, String> query = parseQuery(exchange.getRequestURI().getRawQuery());
-            Map<String, String> headers = toMap(exchange.getRequestHeaders());
+            Map<String, String> headers = exchange.getRequestHeaders().asMap();
 
             if ("OPTIONS".equalsIgnoreCase(method)) {
                 applyCors(exchange);
@@ -165,9 +164,9 @@ public final class HttpServerApp {
         }
     }
 
-    private void write(HttpExchange exchange, Response response) {
+    private void write(Exchange exchange, Response response) {
         try {
-            Headers headers = exchange.getResponseHeaders();
+            HeaderMap headers = exchange.getResponseHeaders();
             for (Map.Entry<String, String> entry : response.getHeaders().entrySet()) {
                 headers.set(entry.getKey(), entry.getValue());
             }
@@ -192,9 +191,9 @@ public final class HttpServerApp {
         }
     }
 
-    private void applyCors(HttpExchange exchange) {
+    private void applyCors(Exchange exchange) {
         String origins = config.getCorsOrigins();
-        Headers headers = exchange.getResponseHeaders();
+        HeaderMap headers = exchange.getResponseHeaders();
         if (origins == null || origins.trim().isEmpty() || "*".equals(origins.trim())) {
             headers.set("Access-Control-Allow-Origin", "*");
         } else {
@@ -212,7 +211,7 @@ public final class HttpServerApp {
         headers.set("Access-Control-Max-Age", "600");
     }
 
-    private String bearer(HttpExchange exchange) {
+    private String bearer(Exchange exchange) {
         String header = exchange.getRequestHeaders().getFirst("Authorization");
         if (header == null) {
             return null;
@@ -224,7 +223,7 @@ public final class HttpServerApp {
         return null;
     }
 
-    private byte[] readBody(HttpExchange exchange) throws IOException {
+    private byte[] readBody(Exchange exchange) throws IOException {
         InputStream input = exchange.getRequestBody();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
@@ -258,17 +257,7 @@ public final class HttpServerApp {
         return query;
     }
 
-    private static Map<String, String> toMap(Headers headers) {
-        Map<String, String> map = new LinkedHashMap<String, String>();
-        for (Map.Entry<String, java.util.List<String>> entry : headers.entrySet()) {
-            if (entry.getValue() != null && !entry.getValue().isEmpty()) {
-                map.put(entry.getKey(), entry.getValue().get(0));
-            }
-        }
-        return map;
-    }
-
-    private static String clientIp(HttpExchange exchange) {
+    private static String clientIp(Exchange exchange) {
         String forwarded = exchange.getRequestHeaders().getFirst("X-Forwarded-For");
         if (forwarded != null && !forwarded.trim().isEmpty()) {
             return forwarded.split(",")[0].trim();
