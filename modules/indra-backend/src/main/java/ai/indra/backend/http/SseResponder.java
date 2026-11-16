@@ -72,9 +72,10 @@ public final class SseResponder {
             if (out != null) {
                 out.flush();
             }
+        } catch (IOException ignored) {
+            // client already disconnected
+        } finally {
             exchange.finish();
-        } catch (RuntimeException ignored) {
-            // client disconnected
         }
     }
 }

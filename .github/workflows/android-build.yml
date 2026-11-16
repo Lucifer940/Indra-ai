@@ -289,6 +289,12 @@ jobs:
           cat release-sha256.txt
           unzip -l indra-android-release.apk | grep -E "classes.dex|AndroidManifest.xml" | head -5
 
+      - name: Fail if the release build failed
+        if: steps.build.outcome != 'success'
+        run: |
+          echo "::error::Release APK/AAB build failed - see the commit comment for details."
+          exit 1
+
       - name: Upload release artifacts
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
