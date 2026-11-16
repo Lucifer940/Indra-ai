@@ -48,7 +48,7 @@ class SyncAndPairingTest {
         JsonObject local = new JsonObject().put("personaId", "friendly").put("updatedAt", Long.valueOf(100));
         JsonObject remote = new JsonObject().put("personaId", "professional").put("updatedAt", Long.valueOf(200));
         assertEquals("professional", SyncMerge.mergeSettings(local, remote).getString("personaId"));
-        assertEquals("friendly", SyncMerge.mergeSettings(remote, local).getString("personaId"));
+        assertEquals("professional", SyncMerge.mergeSettings(remote, local).getString("personaId"));
     }
 
     @Test

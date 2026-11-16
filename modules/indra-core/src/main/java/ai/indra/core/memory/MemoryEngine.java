@@ -194,7 +194,8 @@ public final class MemoryEngine {
         if (containsAny(text, "study", "exam", "college", "school", "subject", "पढाइ", "परीक्षा", "विद्यालय")) {
             return MemoryCategory.STUDY;
         }
-        if (containsAny(text, "health", "medicine", "allergy", "doctor", "asthma", "diabetes", "औषधि", "स्वास्थ्य")) {
+        if (containsAny(text, "health", "medicine", "allergy", "allergic", "doctor", "asthma", "diabetes",
+                "peanut", "penicillin", "intolerant", "औषधि", "स्वास्थ्य", "एलर्जी", "दम")) {
             return MemoryCategory.HEALTH;
         }
         if (containsAny(text, "phone", "number", "contact", "email", "फोन", "नम्बर", "सम्पर्क")) {
@@ -259,9 +260,9 @@ public final class MemoryEngine {
             if (item.isDeleted()) {
                 continue;
             }
-            double score = item.getImportance() * 0.8d;
+            double score = item.getImportance() * 0.6d;
             if (item.isPinned()) {
-                score += 4.0d;
+                score += 2.5d;
             }
             Set<String> itemTokens = tokens(item.getContent());
             if (!queryTokens.isEmpty()) {
@@ -271,7 +272,7 @@ public final class MemoryEngine {
                         overlap++;
                     }
                 }
-                score += overlap * 2.5d;
+                score += overlap * 5.0d;
             }
             long ageMillis = Math.max(0L, now - item.getUpdatedAt());
             long days = ageMillis / (24L * 60L * 60L * 1000L);
@@ -322,14 +323,19 @@ public final class MemoryEngine {
         }
         String normalized = Strings.lower(text);
         StringBuilder word = new StringBuilder();
-        for (int i = 0; i < normalized.length(); i++) {
-            char c = normalized.charAt(i);
-            if (Character.isLetterOrDigit(c)) {
-                word.append(c);
+        for (int i = 0; i < normalized.length(); ) {
+            int codePoint = normalized.codePointAt(i);
+            int type = Character.getType(codePoint);
+            boolean wordChar = Character.isLetterOrDigit(codePoint)
+                    || type == Character.NON_SPACING_MARK
+                    || type == Character.COMBINING_SPACING_MARK;
+            if (wordChar) {
+                word.appendCodePoint(codePoint);
             } else if (word.length() > 0) {
                 addToken(tokens, word.toString());
                 word.setLength(0);
             }
+            i += Character.charCount(codePoint);
         }
         if (word.length() > 0) {
             addToken(tokens, word.toString());
@@ -341,6 +347,32 @@ public final class MemoryEngine {
         if (token.length() < 2 || STOP_WORDS.contains(token)) {
             return;
         }
-        tokens.add(token);
+        tokens.add(canonical(token));
+    }
+
+    /** Normalises common English spelling variants so duplicates are detected. */
+    private static String canonical(String token) {
+        if ("favourite".equals(token) || "fav".equals(token)) {
+            return "favorite";
+        }
+        if ("colour".equals(token)) {
+            return "color";
+        }
+        if ("behaviour".equals(token)) {
+            return "behavior";
+        }
+        if ("mum".equals(token) || "mummy".equals(token)) {
+            return "mom";
+        }
+        if ("centre".equals(token)) {
+            return "center";
+        }
+        if ("realise".equals(token)) {
+            return "realize";
+        }
+        if ("organise".equals(token)) {
+            return "organize";
+        }
+        return token;
     }
 }

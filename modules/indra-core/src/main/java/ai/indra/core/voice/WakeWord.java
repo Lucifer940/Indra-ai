@@ -23,7 +23,7 @@ public final class WakeWord {
             return "";
         }
         return text.toLowerCase(java.util.Locale.ROOT)
-                .replaceAll("[^\\p{L}\\p{N}\\s]", " ")
+                .replaceAll("[^\\p{L}\\p{M}\\p{N}\\s]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
     }
@@ -57,11 +57,14 @@ public final class WakeWord {
         String text = transcript == null ? "" : transcript.trim();
         String lower = text.toLowerCase(java.util.Locale.ROOT);
         String configured = Strings.isBlank(wakeWord) ? DEFAULT : wakeWord.trim().toLowerCase(java.util.Locale.ROOT);
+        String matched = configured;
         int index = lower.indexOf(configured);
         if (index < 0) {
             for (String variant : VARIANTS) {
-                index = lower.indexOf(variant);
-                if (index >= 0) {
+                int found = lower.indexOf(variant);
+                if (found >= 0) {
+                    index = found;
+                    matched = variant;
                     break;
                 }
             }
@@ -69,7 +72,8 @@ public final class WakeWord {
         if (index < 0) {
             return "";
         }
-        String remainder = text.substring(index + configured.length());
+        String remainder = text.substring(index + matched.length());
+        remainder = remainder.toLowerCase(java.util.Locale.ROOT);
         remainder = remainder.replaceAll("^[\\s,.:;!?।-]+", "").trim();
         return remainder;
     }

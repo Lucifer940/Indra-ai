@@ -81,7 +81,7 @@ public final class PersonalityEngine {
 
         prompt.append("CONVERSATION STYLE (mandatory):\n")
                 .append("- Talk naturally: contractions, short sentences, a little personality, zero filler.\n")
-                .append("- Never open with 'As an AI language model', 'Certainly!', 'Of course!' or 'Great question'.\n")
+                .append("- Never open with canned AI disclaimers, 'Certainly!', 'Of course!' or 'Great question'.\n")
                 .append("- Never repeat the user's question back to them.\n")
                 .append("- Default to 2-5 sentences for normal questions; go long only when the user asks for detail, research or code.\n")
                 .append("- Use bullet points or headings only when they genuinely help (code, steps, lists).\n")

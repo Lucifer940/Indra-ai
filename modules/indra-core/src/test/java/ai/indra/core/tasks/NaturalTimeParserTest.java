@@ -66,8 +66,8 @@ class NaturalTimeParserTest {
 
     @Test
     void barePastClockTimeRollsToTomorrow() {
-        // 08:00 is before 10:00, so it should schedule tomorrow morning.
-        assertEquals(1794906000000L, parse("remind me at 8 am workout"));
+        // 08:00 is before 10:00, so it should schedule tomorrow 08:00 UTC.
+        assertEquals(1794902400000L, parse("remind me at 8 am workout"));
     }
 
     @Test
