@@ -10,6 +10,9 @@
 - **"Continue without signing in"** on the login screen: one tap creates an encrypted device session
   (`POST /api/v1/auth/local`, available only in local mode) and opens the main screen. Email/Google/GitHub
   sign-in and the licence remain optional.
+- **"I have a licence key"** on the login screen activates a licence without creating an account (the
+  device session is created first); the key is stored Keystore-encrypted and can be changed in Settings.
+- The test job also compiles the Windows desktop module, so shared-code changes cannot silently break it.
 - Portable `ai.indra.core.net.Http` (HttpURLConnection) used by every network call, replacing
   `java.net.http`, which does not exist on Android.
 - Pure-Java HTTP/1.1 server (`LocalHttpServer` + `Exchange`): keep-alive, chunked request bodies and chunked

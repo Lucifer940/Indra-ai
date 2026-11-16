@@ -337,8 +337,9 @@ jobs:
 
   tests:
     name: Core and backend tests
-    # Tests run in their own job so the APK artifact is still published even when
-    # the suite is red, while a red suite still turns the whole run red.
+    # Tests and the Windows desktop module build in their own job so the APK
+    # artifacts are still published even when the suite is red, while a red suite
+    # still turns the whole run red.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -361,7 +362,8 @@ jobs:
         run: |
           set -o pipefail
           chmod +x gradlew
-          ./gradlew :indra-core:test :indra-backend:test --no-daemon --stacktrace 2>&1 | tee tests.log
+          ./gradlew :indra-core:test :indra-backend:test :indra-desktop:compileJava \
+            --no-daemon --stacktrace 2>&1 | tee tests.log
 
       - name: Publish test failures
         if: failure()
