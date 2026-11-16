@@ -175,6 +175,9 @@ public final class MemoryEngine {
         if (containsAny(text, "birthday", "age ", "जन्मदिन", "उमेर", "my name", "मेरो नाम", "live in", "बस्छु")) {
             return MemoryCategory.PROFILE;
         }
+        if (containsAny(text, "phone", "number", "contact", "email", "फोन", "नम्बर", "सम्पर्क")) {
+            return MemoryCategory.CONTACT;
+        }
         if (containsAny(text, "like", "love", "hate", "prefer", "favourite", "favorite", "मन पर्छ", "मन पर्दैन")) {
             return MemoryCategory.PREFERENCE;
         }
@@ -197,9 +200,6 @@ public final class MemoryEngine {
         if (containsAny(text, "health", "medicine", "allergy", "allergic", "doctor", "asthma", "diabetes",
                 "peanut", "penicillin", "intolerant", "औषधि", "स्वास्थ्य", "एलर्जी", "दम")) {
             return MemoryCategory.HEALTH;
-        }
-        if (containsAny(text, "phone", "number", "contact", "email", "फोन", "नम्बर", "सम्पर्क")) {
-            return MemoryCategory.CONTACT;
         }
         return MemoryCategory.OTHER;
     }
