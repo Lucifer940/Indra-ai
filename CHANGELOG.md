@@ -1,6 +1,26 @@
 # Changelog — INDRA AI
 
-## 1.1.1 — current
+## 1.1.2 — current
+
+### Fixed
+- `indra-backend` and `indra-core` test sources now compile: `BackendConfig` copies settings into its final map
+  and returns `long` from `getLong`, `KeyService` has a real `audit(...)` helper, `JsonArray` gained
+  `getDouble`, and the sync/config tests pass `JsonObject` straight to `fromJson`.
+- `ChatService` handles a client disconnecting mid-stream; the OpenAI-compatible provider handles
+  `InterruptedException`.
+- Core behaviour bugs the suite caught: `remind me to …` no longer swallows the `to` of `tomorrow`;
+  memory classification recognises allergies and phone numbers, keeps Devanagari matras in tokens,
+  canonicalises spelling variants and ranks query matches above pinned notes; the wake word accepts
+  Devanagari and returns lowercase commands; the speech sanitiser strips leftover markdown, URLs and emoji;
+  the system prompt no longer hardcodes a version or a canned AI disclaimer.
+- Corrected two test expectations that contradicted their own comments (08:00 rollover and settings-merge
+  symmetry).
+
+### Changed
+- The test job is no longer `continue-on-error`: the APK job still publishes independently, but a failing
+  test suite turns the run red. The job also writes a test-count summary (`test-summary.txt`, job summary).
+
+## 1.1.1
 
 ### Added
 - Gradle wrapper 8.7 (`gradlew`, `gradlew.bat`, `gradle/wrapper/*`) so no local Gradle install is needed.

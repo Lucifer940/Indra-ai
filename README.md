@@ -174,9 +174,11 @@ AES-256-GCM) or supplied as environment variables. More detail: [`config/api-key
 This repository is source code produced without a working JDK, Android SDK or Gradle distribution in the
 authoring environment. Therefore:
 
-- The Android APK **is** built by CI (`android-build.yml`) and **has** compiled successfully; the unit and
-  integration test suites run in the same workflow and are reported separately — read their result before
-  relying on them.
+- The Android APK **is** built by CI (`android-build.yml`) and has compiled and packaged successfully.
+  The `indra-core` and `indra-backend` unit tests compile and pass on the same runners, and their job
+  (`Core and backend tests`) now gates the run — a red suite fails the workflow.
+- The APK has not been installed or exercised on a physical Android device from this environment; only the
+  CI packaging step has been verified.
 - Google/GitHub sign-in, weather, search and AI answers require their respective server-side credentials.
   Without them the app degrades gracefully and says so — it does not invent results.
 - Windows dictation depends on the speech components installed in Windows.

@@ -170,10 +170,9 @@ jobs:
           retention-days: 7
 
   tests:
-    name: Core and backend tests (informational)
-    # The APK job above is the release gate. Tests are reported but do not block
-    # the build, so a failing test never hides a buildable app.
-    continue-on-error: true
+    name: Core and backend tests
+    # Tests run in their own job so the APK artifact is still published even when
+    # the suite is red, while a red suite still turns the whole run red.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -193,14 +192,13 @@ jobs:
 
       - name: Run unit and integration tests
         id: tests
-        continue-on-error: true
         run: |
           set -o pipefail
           chmod +x gradlew
           ./gradlew :indra-core:test :indra-backend:test --no-daemon --stacktrace 2>&1 | tee tests.log
 
       - name: Publish test failures
-        if: steps.tests.outcome == 'failure'
+        if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -212,8 +210,7 @@ jobs:
           keep = [line for line in text.splitlines()
                   if re.search(r'error:|FAILED|What went wrong|Caused by|expected:|but was:|Execution failed', line)]
           summary = ('\n'.join(keep[-160:]) if keep else '\n'.join(text.splitlines()[-160:]))[-14000:]
-          body = ("### INDRA AI tests failed (informational)\n\n"
-                  "The APK job is independent of this result.\n\n"
+          body = ("### INDRA AI tests failed\n\n"
                   "```text\n" + summary + "\n```\n")
           payload = json.dumps({"body": body})
           url = ("https://api.github.com/repos/" + os.environ['GITHUB_REPOSITORY']
@@ -226,6 +223,33 @@ jobs:
                          input=payload, text=True, capture_output=True)
           PY
 
+      - name: Summarise test results
+        if: always()
+        run: |
+          chmod +x gradlew || true
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+          total = failures = errors = skipped = 0
+          for path in glob.glob('modules/*/build/test-results/test/*.xml'):
+              try:
+                  root = ET.parse(path).getroot()
+              except Exception:
+                  continue
+              total += int(root.get('tests') or 0)
+              failures += int(root.get('failures') or 0)
+              errors += int(root.get('errors') or 0)
+              skipped += int(root.get('skipped') or 0)
+          line = ("tests: %d, failures: %d, errors: %d, skipped: %d"
+                  % (total, failures, errors, skipped))
+          print(line)
+          with open('test-summary.txt', 'w') as handle:
+              handle.write(line + "\n")
+          summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_path:
+              with open(summary_path, 'a') as handle:
+                  handle.write("### Unit and integration tests\n\n" + line + "\n")
+          PY
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -234,5 +258,6 @@ jobs:
           path: |
             modules/indra-core/build/reports/tests/**
             modules/indra-backend/build/reports/tests/**
+            test-summary.txt
           if-no-files-found: ignore
           retention-days: 7
