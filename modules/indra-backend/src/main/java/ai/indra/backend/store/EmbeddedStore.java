@@ -245,6 +245,9 @@ public final class EmbeddedStore implements DocumentStore {
                         StandardCopyOption.ATOMIC_MOVE);
             } catch (java.nio.file.AtomicMoveNotSupportedException fallback) {
                 Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (UnsupportedOperationException fallback) {
+                // Some Android file systems refuse ATOMIC_MOVE; a plain replace is fine.
+                Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException error) {
             throw new IllegalStateException("Cannot persist collection " + collection, error);
