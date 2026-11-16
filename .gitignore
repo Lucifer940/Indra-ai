@@ -39,9 +39,14 @@ config/local.properties
 indra.db
 indra.db-shm
 indra.db-wal
-data/
-logs/
+/data/
+/logs/
 *.log
+
+# Backend runtime output (only at the repository root - module source folders
+# such as modules/indra-android/src/main/java/ai/indra/android/data must be tracked)
+/data/
+/logs/
 
 # Distribution artifacts
 dist/

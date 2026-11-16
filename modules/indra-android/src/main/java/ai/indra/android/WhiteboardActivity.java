@@ -44,7 +44,7 @@ public class WhiteboardActivity extends AppCompatActivity {
         hint = UiKit.subtitle(this, "Draw with your finger. Everything stays on this device until you share it.");
         column.addView(hint);
 
-        board = new DrawingView();
+        board = new DrawingView(this);
         column.addView(board, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         LinearLayout tools = UiKit.horizontal(this);
@@ -142,7 +142,8 @@ public class WhiteboardActivity extends AppCompatActivity {
         private float width = 6f;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        DrawingView() {
+        DrawingView(android.content.Context context) {
+            super(context);
             setBackgroundColor(Color.parseColor("#05070F"));
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeCap(Paint.Cap.ROUND);
