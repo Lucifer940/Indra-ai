@@ -132,3 +132,18 @@ data: {"delta":"Hi"}
 event: done
 data: {"text":"Hi there!","conversationId":"…","shouldSpeak":true}
 ```
+
+### POST /api/v1/auth/local (on-device engine only)
+
+Available only when the backend runs in local mode (`INDRA_LOCAL_MODE=true`, which is how the Android app
+starts it). It opens a session for this installation without an email account, so the app is usable straight
+after install.
+
+```http
+POST /api/v1/auth/local
+{ "deviceId": "<stable per-install id>", "displayName": "optional" }
+```
+
+Response is the same shape as `/auth/login` (access token, refresh token, user, settings). The account is
+derived from the device id and gets a random password that is never displayed; an email account can be
+added later without losing data. A normal server deployment returns 404 for this route.

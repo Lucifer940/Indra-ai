@@ -8,6 +8,11 @@
 ./gradlew :indra-backend:test   # ApiIntegrationTest: 12 scenarios of real HTTP against a temp data directory
 ```
 
+`LocalModeIntegrationTest` (backend) covers the configuration the phone uses: the engine starts on
+127.0.0.1 on an OS-assigned port, the device session opens without an account, `/api/v1/chat/stream` emits
+`event: token` / `event: done` over the new pure-Java HTTP server, memories and tasks survive an engine
+restart, and the device-session route is absent when the server runs in normal mode.
+
 `ApiIntegrationTest` starts the actual server on a free port with `INDRA_DATA_DIR` pointed at a temporary
 folder, then walks through 11 ordered scenarios:
 

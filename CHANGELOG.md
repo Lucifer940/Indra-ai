@@ -1,6 +1,39 @@
 # Changelog — INDRA AI
 
-## 1.1.2 — current
+## 1.2.0 — current
+
+### Added
+- **The backend now runs inside the Android app.** `indra-backend` is a dependency of the app and
+  `ApiApplication` starts on `127.0.0.1` with an OS-assigned port at launch (`LocalBackend`), so the phone
+  needs no PC, emulator host or external server. REST routes, JWT auth, rate limiting, SSE streaming and
+  error mapping are the same code path as the desktop deployment.
+- **"Continue without signing in"** on the login screen: one tap creates an encrypted device session
+  (`POST /api/v1/auth/local`, available only in local mode) and opens the main screen. Email/Google/GitHub
+  sign-in and the licence remain optional.
+- Portable `ai.indra.core.net.Http` (HttpURLConnection) used by every network call, replacing
+  `java.net.http`, which does not exist on Android.
+- Pure-Java HTTP/1.1 server (`LocalHttpServer` + `Exchange`): keep-alive, chunked request bodies and chunked
+  Server-Sent Events; replaces `com.sun.net.httpserver`.
+- At-rest encryption of the on-device store: every collection file is written as
+  `INDRA1:<AES-256-GCM>` with a key held by the Android Keystore (`KeystoreFileCodec`). JWT signing and the
+  API-key master key are random per install and stored Keystore-encrypted - nothing is hard-coded.
+- Signed release APK + AAB in CI (`Release APK + AAB` job, artifact `indra-ai-release`) using repository
+  secrets when present and a throw-away key otherwise.
+- `LocalModeIntegrationTest`: loopback bind, OS-assigned port, device session, SSE streaming and
+  memory/task persistence across an engine restart.
+
+### Changed
+- The app talks to its own engine by default; a remote server is an optional setting
+  (**Settings → Engine**), no longer the default. `API_BASE_URL` is now only a fallback.
+- `ChatService` falls back to the on-device brain on network/timeout provider errors and says so in the
+  reply instead of failing or implying a cloud answer.
+- Release builds are no longer minified (`minifyEnabled false`): shrinking is unverified on a device, and a
+  working build matters more than a smaller one.
+
+### Fixed
+- `SseResponder` no longer throws when the client disconnects mid-stream.
+
+## 1.1.2
 
 ### Fixed
 - `indra-backend` and `indra-core` test sources now compile: `BackendConfig` copies settings into its final map

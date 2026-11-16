@@ -72,3 +72,25 @@ actions), `DesktopVoice` (OS speech), `BackendManager` (starts/stops the server)
 - **Graceful degradation**: no key, no search provider, no speech engine → explicit message, offline brain,
   or a disabled control. Silence and fake results are treated as bugs.
 - **No shell**: PC control is an allowlist, not an interpreter.
+
+## Embedded engine (Android)
+
+```
+ Android UI (Activities, Views)
+        │  HTTP over 127.0.0.1:<os-assigned port>
+        ▼
+ ApiClient ──► LocalHttpServer (pure Java, keep-alive, chunked SSE)
+                       │
+                       ▼
+              ApiApplication  (same wiring as the PC deployment)
+             /        |         \
+      AuthService  ChatService  Memory/Task/Settings services
+             \        |         /
+              Repository ──► EmbeddedStore (JSON files, encrypted via KeystoreFileCodec)
+                       │
+                 indra-core: prompts, intent, memory engine, providers, crypto
+```
+
+The engine starts from `IndraApp.onCreate()`, is reachable only from the phone, and is rebuilt automatically
+when Android recreates the process (including after a reboot). Nothing in `indra-core` or the services is
+Android-specific; only the transport (`LocalHttpServer`) and the storage codec differ.
