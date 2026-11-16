@@ -116,6 +116,13 @@ gradle assembleDebug
 adb install -r build/outputs/apk/debug/indra-android-debug.apk
 ```
 
+One command (checks prerequisites, builds, installs and launches on a connected phone):
+
+```bash
+bash scripts/build-and-install-android.sh          # or:  --build  to skip installing
+scripts\build-and-install-android.bat             # Windows
+```
+
 Release build (you must create your own keystore — none is included):
 
 ```bash
