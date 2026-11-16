@@ -38,15 +38,34 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK tools
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK platform 34, build-tools and platform-tools
+      # The ubuntu-latest image ships an Android SDK. Use it directly instead of a
+      # third-party setup action, which also avoids an extra download.
+      - name: Prepare Android SDK 34
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          ls "$ANDROID_HOME"
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK" ]; then
+            echo "::error::No Android SDK found at $SDK"
+            exit 1
+          fi
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "SDK contents:"; ls "$SDK" || true
+          echo "Platforms before:"; ls "$SDK/platforms" || true
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKM" ]; then
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+            yes | "$SDKM" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || \
+              "$SDKM" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          else
+            echo "::warning::sdkmanager not found; relying on the preinstalled platform 34"
+          fi
+          echo "Platforms after:"; ls "$SDK/platforms" || true
+          echo "Build-tools after:"; ls "$SDK/build-tools" || true
+          test -d "$SDK/platforms/android-34" || { echo "::error::platforms;android-34 is missing"; exit 1; }
+          test -d "$SDK/build-tools/34.0.0" || echo "::warning::build-tools 34.0.0 missing (AGP may pick another 34.x)"
 
       - name: Set up Gradle (with cache)
         uses: gradle/actions/setup-gradle@v3
