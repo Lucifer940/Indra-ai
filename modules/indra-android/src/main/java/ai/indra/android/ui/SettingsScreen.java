@@ -195,6 +195,55 @@ public final class SettingsScreen extends Screen {
                 host.showHistory();
             }
         }));
+        column.addView(valueRow("Memory", "What INDRA remembers about you", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                host.openTab(5);
+            }
+        }));
+        column.addView(valueRow("Reminders & tasks", "Everything scheduled", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                host.openTab(3);
+            }
+        }));
+
+        // Appearance
+        column.addView(UiKit.sectionLabel(context, "Appearance & Aura"));
+        column.addView(valueRow("AI Aura",
+                ai.indra.android.ui.AuraStyle.fromId(host.prefs().getAuraStyle()).getLabel()
+                        + " - six holographic looks",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        host.showAuraPicker();
+                    }
+                }));
+        column.addView(valueRow("Orb animation speed",
+                Math.round(host.prefs().getAuraSpeed() * 100) + "%",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        host.showAuraPicker();
+                    }
+                }));
+        column.addView(valueRow("Theme",
+                host.prefs().isDarkTheme() ? "Dark" : "Light",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        String[] labels = {"Light", "Dark"};
+                        final String[] values = {"light", "dark"};
+                        new AlertDialog.Builder(host).setTitle("Theme")
+                                .setItems(labels, new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        host.applyTheme(values[which]);
+                                        host.toast("Theme applied");
+                                    }
+                                }).show();
+                    }
+                }));
 
         // Engine / Connection
         column.addView(UiKit.sectionLabel(context, "Engine"));
@@ -252,6 +301,23 @@ public final class SettingsScreen extends Screen {
                         @Override
                         public void onClick(View v) {
                             host.openAdmin();
+                        }
+                    }));
+        }
+        if (host.session().isLocalAccount()) {
+            column.addView(valueRow("Sign in or create account",
+                    "Add an email account, keep this phone's data", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            host.openLogin();
+                        }
+                    }));
+        } else {
+            column.addView(valueRow("Switch account", "Sign in with another account",
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            host.openLogin();
                         }
                     }));
         }

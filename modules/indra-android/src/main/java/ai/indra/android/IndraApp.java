@@ -9,6 +9,7 @@ import ai.indra.android.data.Prefs;
 import ai.indra.android.data.SessionManager;
 import ai.indra.android.local.LocalBackend;
 import ai.indra.android.service.NotificationHelper;
+import ai.indra.android.ui.UiKit;
 import ai.indra.core.apikeys.ApiKeyVault;
 import ai.indra.core.util.Log;
 
@@ -35,6 +36,8 @@ public class IndraApp extends Application {
         instance = this;
         Log.setMinimum(BuildConfig.DEBUG ? Log.Level.DEBUG : Log.Level.WARN);
         prefs = new Prefs(this);
+        // Theme must be applied before the first screen is inflated.
+        UiKit.applyTheme(prefs.isDarkTheme());
         store = new LocalStore(this);
         api = new ApiClient(this, prefs);
         session = new SessionManager(api, prefs);

@@ -4,9 +4,12 @@
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#0B1428"
-                android:centerColor="#080B18"
-                android:endColor="#05070F" />
+                android:startColor="#FFFFFF"
+                android:centerColor="#FFF1F5"
+                android:endColor="#F6F7FC" />
         </shape>
+    </item>
+    <item android:gravity="center" android:width="220dp" android:height="220dp">
+        <bitmap android:src="@drawable/indra_logo" android:gravity="center" />
     </item>
 </layer-list>

@@ -1,14 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  INDRA AI brand palette.
+  Premium light surface with holographic accents: crimson red (primary), hot pink,
+  violet and electric blue. Dark values live in values-night/colors.xml and are
+  applied at runtime by UiKit when the user picks the dark theme.
+-->
 <resources>
-    <color name="indra_bg">#080B18</color>
-    <color name="indra_surface">#111629</color>
-    <color name="indra_surface_high">#1A2138</color>
-    <color name="indra_accent">#5B8CFF</color>
-    <color name="indra_accent_soft">#2A3A6B</color>
-    <color name="indra_secondary">#8A5BFF</color>
-    <color name="indra_text">#E9EDFF</color>
-    <color name="indra_text_dim">#9AA3C7</color>
-    <color name="indra_success">#3DD68C</color>
-    <color name="indra_warning">#FFB84D</color>
-    <color name="indra_error">#FF5C7A</color>
+    <!-- Light theme (default) -->
+    <color name="indra_bg">#F6F7FC</color>
+    <color name="indra_surface">#FFFFFF</color>
+    <color name="indra_surface_high">#FFF3F6</color>
+    <color name="indra_accent">#FF2B4E</color>
+    <color name="indra_accent_soft">#FFE3EA</color>
+    <color name="indra_secondary">#7C4DFF</color>
+    <color name="indra_pink">#FF4D8D</color>
+    <color name="indra_blue">#2F80ED</color>
+    <color name="indra_text">#14142B</color>
+    <color name="indra_text_dim">#6E7191</color>
+    <color name="indra_stroke">#F0DCE3</color>
+    <color name="indra_success">#12B76A</color>
+    <color name="indra_warning">#F79009</color>
+    <color name="indra_error">#E01E37</color>
+    <color name="indra_icon_bg">#12000A</color>
+
+    <!-- Gradients (drawables use these) -->
+    <color name="grad_start">#FF2B4E</color>
+    <color name="grad_mid">#FF4D8D</color>
+    <color name="grad_end">#7C4DFF</color>
 </resources>

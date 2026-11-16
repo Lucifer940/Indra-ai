@@ -8,7 +8,6 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import ai.indra.android.ui.CharacterView;
 import ai.indra.android.ui.UiKit;
 
 /** Branded splash with the character, then routes to login or the main app. */
@@ -22,8 +21,10 @@ public class SplashActivity extends AppCompatActivity {
         column.setGravity(android.view.Gravity.CENTER);
         column.setPadding(UiKit.dp(this, 24), UiKit.dp(this, 24), UiKit.dp(this, 24), UiKit.dp(this, 24));
 
-        CharacterView character = new CharacterView(this);
-        column.addView(character, new LinearLayout.LayoutParams(UiKit.dp(this, 260), UiKit.dp(this, 260)));
+        android.widget.ImageView logo = new android.widget.ImageView(this);
+        logo.setImageResource(R.drawable.indra_character);
+        logo.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        column.addView(logo, new LinearLayout.LayoutParams(UiKit.dp(this, 260), UiKit.dp(this, 260)));
 
         TextView name = UiKit.text(this, "INDRA AI", 30f, UiKit.TEXT, true);
         name.setGravity(android.view.Gravity.CENTER);
@@ -40,7 +41,6 @@ public class SplashActivity extends AppCompatActivity {
 
         root.addView(column);
         setContentView(root);
-        character.setState(CharacterView.State.HAPPY);
 
         root.postDelayed(new Runnable() {
             @Override

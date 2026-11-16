@@ -33,6 +33,9 @@ import java.util.UUID;
  */
 public class LoginActivity extends AppCompatActivity {
 
+    /** Set to true when opened from Settings to add/link an account. */
+    public static final String EXTRA_FORCE_SHOW = "forceShow";
+
     private EditText email;
     private EditText password;
     private EditText displayName;
@@ -51,7 +54,9 @@ public class LoginActivity extends AppCompatActivity {
         prefs = app.prefs();
         api = app.api();
         session = app.session();
-        if (prefs.hasSession()) {
+        boolean forceShow = getIntent() != null
+                && getIntent().getBooleanExtra(EXTRA_FORCE_SHOW, false);
+        if (!forceShow && prefs.hasSession()) {
             goToMain();
             return;
         }
@@ -429,7 +434,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void goToMain() {
-        startActivity(new Intent(this, MainActivity.class));
+        Intent main = new Intent(this, MainActivity.class);
+        main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        main.putExtra("refreshSession", true);
+        startActivity(main);
         finish();
     }
 }

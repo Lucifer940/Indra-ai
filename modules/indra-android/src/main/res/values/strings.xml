@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">INDRA AI</string>
     <string name="creator">Umesh Chaudhary</string>
-    <string name="tagline">Your personal AI assistant</string>
+    <string name="tagline">YOUR PERSONAL AI ASSISTANT</string>
     <string name="wake_service_description">Listens for the word \"Indra\" so you can talk hands-free. A notification is always shown while the microphone is active.</string>
     <string name="notification_channel_voice">Voice assistant</string>
     <string name="notification_channel_reminders">Reminders</string>

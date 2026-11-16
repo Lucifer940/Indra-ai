@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,8 +34,10 @@ import ai.indra.android.service.NotificationHelper;
 import ai.indra.android.service.ReminderScheduler;
 import ai.indra.android.service.WakeWordService;
 import ai.indra.android.ui.CharacterView;
+import ai.indra.android.ui.AuraStyle;
 import ai.indra.android.ui.ChatScreen;
 import ai.indra.android.ui.MemoryScreen;
+import ai.indra.android.ui.HomeScreen;
 import ai.indra.android.ui.Screen;
 import ai.indra.android.ui.SettingsScreen;
 import ai.indra.android.ui.TasksScreen;
@@ -60,7 +63,10 @@ import ai.indra.core.util.Strings;
 import ai.indra.core.voice.WakeWord;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -87,7 +93,10 @@ public class MainActivity extends AppCompatActivity {
 
     private FrameLayout content;
     private LinearLayout nav;
+    private LinearLayout topBar;
     private TextView connectionStatus;
+    private TextView floatingMic;
+    private HomeScreen homeScreen;
     private ChatScreen chatScreen;
     private VoiceScreen voiceScreen;
     private MemoryScreen memoryScreen;
@@ -120,6 +129,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        applySystemBarAppearance();
         buildShell();
         setupVoice();
         requestStartupPermissions();
@@ -131,6 +141,23 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        if (intent != null && intent.getBooleanExtra("refreshSession", false)) {
+            // Signed in or out from the login screen: rebuild with the new session.
+            intent.removeExtra("refreshSession");
+            homeScreen = null;
+            chatScreen = null;
+            voiceScreen = null;
+            memoryScreen = null;
+            tasksScreen = null;
+            settingsScreen = null;
+            if (!prefs.hasSession()) {
+                startActivity(new Intent(this, LoginActivity.class));
+                finish();
+                return;
+            }
+            buildShell();
+            return;
+        }
         handleVoiceIntent(intent);
     }
 
@@ -138,14 +165,20 @@ public class MainActivity extends AppCompatActivity {
         FrameLayout root = UiKit.root(this);
         LinearLayout column = UiKit.vertical(this);
 
-        LinearLayout top = UiKit.horizontal(this);
-        top.setPadding(UiKit.dp(this, 16), UiKit.dp(this, 12), UiKit.dp(this, 16), UiKit.dp(this, 4));
+        // Compact brand bar used outside Home (Home draws its own premium header).
+        topBar = UiKit.horizontal(this);
+        topBar.setPadding(UiKit.dp(this, 16), UiKit.dp(this, 10), UiKit.dp(this, 16), UiKit.dp(this, 4));
+        android.widget.ImageView logo = new android.widget.ImageView(this);
+        logo.setImageResource(R.drawable.indra_logo);
+        logo.setLayoutParams(new LinearLayout.LayoutParams(UiKit.dp(this, 36), UiKit.dp(this, 36)));
+        topBar.addView(logo);
         LinearLayout brand = UiKit.vertical(this);
+        brand.setPadding(UiKit.dp(this, 10), 0, 0, 0);
         brand.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        brand.addView(UiKit.text(this, "INDRA AI", 18f, UiKit.TEXT, true));
-        connectionStatus = UiKit.text(this, "Connecting…", 11f, UiKit.TEXT_DIM, false);
+        brand.addView(UiKit.text(this, "INDRA AI", 17f, UiKit.TEXT, true));
+        connectionStatus = UiKit.text(this, "Connecting…", 10f, UiKit.TEXT_DIM, false);
         brand.addView(connectionStatus);
-        top.addView(brand);
+        topBar.addView(brand);
         Button sync = UiKit.smallButton(this, "Sync");
         sync.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -153,18 +186,39 @@ public class MainActivity extends AppCompatActivity {
                 syncNow();
             }
         });
-        top.addView(sync);
-        column.addView(top);
+        topBar.addView(sync);
+        column.addView(topBar);
 
         content = new FrameLayout(this);
         column.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         nav = UiKit.horizontal(this);
-        nav.setPadding(UiKit.dp(this, 6), UiKit.dp(this, 4), UiKit.dp(this, 6), UiKit.dp(this, 10));
+        nav.setPadding(UiKit.dp(this, 4), UiKit.dp(this, 6), UiKit.dp(this, 4), UiKit.dp(this, 10));
         nav.setGravity(Gravity.CENTER);
+        nav.setBackgroundColor(UiKit.SURFACE);
+        nav.setElevation(UiKit.dp(this, 8));
         column.addView(nav);
 
         root.addView(column);
+
+        // Floating microphone: always one tap away, above the navigation bar.
+        floatingMic = UiKit.text(this, "🎤", 24f, android.graphics.Color.WHITE, false);
+        floatingMic.setGravity(Gravity.CENTER);
+        floatingMic.setBackground(UiKit.brandGradient(this, 40f));
+        floatingMic.setElevation(UiKit.dp(this, 10));
+        FrameLayout.LayoutParams micParams = new FrameLayout.LayoutParams(
+                UiKit.dp(this, 64), UiKit.dp(this, 64));
+        micParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        micParams.bottomMargin = UiKit.dp(this, 62);
+        floatingMic.setLayoutParams(micParams);
+        floatingMic.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toggleListening();
+            }
+        });
+        root.addView(floatingMic);
+
         setContentView(root);
         openTab(0);
     }
@@ -293,23 +347,23 @@ public class MainActivity extends AppCompatActivity {
     // ---------------------------------------------------------------- tabs
 
     public void openTab(int index) {
-        if (index < 0 || index > 4) {
+        if (index < 0 || index > 5) {
             return;
         }
         currentTab = index;
         Screen screen;
         switch (index) {
             case 1:
+                if (chatScreen == null) {
+                    chatScreen = new ChatScreen(this);
+                }
+                screen = chatScreen;
+                break;
+            case 2:
                 if (voiceScreen == null) {
                     voiceScreen = new VoiceScreen(this);
                 }
                 screen = voiceScreen;
-                break;
-            case 2:
-                if (memoryScreen == null) {
-                    memoryScreen = new MemoryScreen(this);
-                }
-                screen = memoryScreen;
                 break;
             case 3:
                 if (tasksScreen == null) {
@@ -323,12 +377,25 @@ public class MainActivity extends AppCompatActivity {
                 }
                 screen = settingsScreen;
                 break;
-            default:
-                if (chatScreen == null) {
-                    chatScreen = new ChatScreen(this);
+            case 5:
+                if (memoryScreen == null) {
+                    memoryScreen = new MemoryScreen(this);
                 }
-                screen = chatScreen;
+                screen = memoryScreen;
                 break;
+            default:
+                if (homeScreen == null) {
+                    homeScreen = new HomeScreen(this);
+                }
+                screen = homeScreen;
+                break;
+        }
+        if (topBar != null) {
+            topBar.setVisibility(index == 0 ? View.GONE : View.VISIBLE);
+        }
+        if (floatingMic != null) {
+            // Home has its own composer; the mic floats over every other tab.
+            floatingMic.setVisibility(index == 0 || index == 2 ? View.GONE : View.VISIBLE);
         }
         content.removeAllViews();
         content.addView(screen.build(), new FrameLayout.LayoutParams(
@@ -342,26 +409,44 @@ public class MainActivity extends AppCompatActivity {
 
     private void buildNav() {
         nav.removeAllViews();
-        String[] labels = {"Chat", "Voice", "Memory", "Tasks", "Settings"};
+        String[] labels = {"Home", "Chat", "Voice", "Triggers", "Settings"};
+        String[] glyphs = {"⌂", "💬", "🎙", "⚡", "⚙"};
+        // Memory stays one tap away through the Home card and Settings → Tools.
+        int[] targets = {0, 1, 2, 3, 4};
         for (int i = 0; i < labels.length; i++) {
-            Button button = UiKit.smallButton(this, labels[i]);
-            final int index = i;
-            boolean active = i == currentTab;
-            button.setTextColor(active ? UiKit.BG : UiKit.TEXT);
-            button.setBackground(active ? UiKit.rounded(UiKit.ACCENT, 18f, this)
-                    : UiKit.rounded(UiKit.SURFACE, 18f, this));
+            final int target = targets[i];
+            boolean active = target == currentTab || (currentTab == 5 && target == 0);
+            LinearLayout item = UiKit.vertical(this);
+            item.setGravity(Gravity.CENTER);
+            item.setPadding(0, UiKit.dp(this, 4), 0, 0);
+            TextView icon = UiKit.text(this, glyphs[i], 18f, active ? UiKit.ACCENT : UiKit.TEXT_DIM, false);
+            icon.setGravity(Gravity.CENTER);
+            item.addView(icon);
+            TextView caption = UiKit.text(this, labels[i], 11f, active ? UiKit.ACCENT : UiKit.TEXT_DIM,
+                    active);
+            caption.setGravity(Gravity.CENTER);
+            item.addView(caption);
+            if (active) {
+                View indicator = new View(this);
+                android.graphics.drawable.GradientDrawable bar =
+                        UiKit.rounded(UiKit.ACCENT, 2f, this);
+                indicator.setBackground(bar);
+                LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
+                        UiKit.dp(this, 18), UiKit.dp(this, 3));
+                barParams.topMargin = UiKit.dp(this, 3);
+                indicator.setLayoutParams(barParams);
+                item.addView(indicator);
+            }
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            params.leftMargin = UiKit.dp(this, 2);
-            params.rightMargin = UiKit.dp(this, 2);
-            button.setLayoutParams(params);
-            button.setOnClickListener(new View.OnClickListener() {
+            item.setLayoutParams(params);
+            item.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    openTab(index);
+                    openTab(target);
                 }
             });
-            nav.addView(button);
+            nav.addView(item);
         }
     }
 
@@ -1330,6 +1415,183 @@ public class MainActivity extends AppCompatActivity {
 
     public ExecutorService executor() {
         return executor;
+    }
+
+    /** Opens the sign-in / sign-up screen even when a device session exists. */
+    public void openLogin() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.putExtra(LoginActivity.EXTRA_FORCE_SHOW, true);
+        startActivity(intent);
+    }
+
+    /** AI Aura picker: six holographic looks, saved per device. */
+    public void showAuraPicker() {
+        final AuraStyle[] styles = AuraStyle.values();
+        String[] labels = AuraStyle.labels();
+        int selected = AuraStyle.fromId(prefs.getAuraStyle()).ordinal();
+        new AlertDialog.Builder(this)
+                .setTitle("AI Aura")
+                .setSingleChoiceItems(labels, selected, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        AuraStyle style = styles[which];
+                        prefs.setAuraStyle(style.name());
+                        dialog.dismiss();
+                        toast("Aura set to " + style.getLabel());
+                        openTab(currentTab);
+                    }
+                })
+                .setNeutralButton("Animation speed", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        showAuraSpeed();
+                    }
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void showAuraSpeed() {
+        final String[] labels = {"Calm (0.6x)", "Balanced (1.0x)", "Lively (1.5x)", "Cinematic (2.0x)"};
+        final float[] speeds = {0.6f, 1.0f, 1.5f, 2.0f};
+        new AlertDialog.Builder(this)
+                .setTitle("Orb animation speed")
+                .setItems(labels, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        prefs.setAuraSpeed(speeds[which]);
+                        toast("Animation speed set");
+                    }
+                })
+                .show();
+    }
+
+    /** Notification panel: upcoming reminders plus the system notification settings. */
+    public void showNotifications() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        final LinearLayout sheet = UiKit.vertical(this);
+        sheet.setPadding(UiKit.dp(this, 18), UiKit.dp(this, 8), UiKit.dp(this, 18), 0);
+        sheet.addView(UiKit.subtitle(this, "Loading your reminders…"));
+        builder.setTitle("Notifications").setView(UiKit.scroll(this, sheet))
+                .setPositiveButton("System settings", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        openNotificationSettings();
+                    }
+                })
+                .setNegativeButton("Close", null);
+        final AlertDialog dialog = builder.show();
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final JsonObject response = api.tasks(false);
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            sheet.removeAllViews();
+                            JsonArray tasks = response.getArrayOrEmpty("tasks");
+                            SimpleDateFormat format = new SimpleDateFormat("EEE d MMM, HH:mm", Locale.getDefault());
+                            int shown = 0;
+                            for (int i = 0; i < tasks.size() && shown < 6; i++) {
+                                JsonObject task = tasks.getObject(i);
+                                long when = task.getLong("remindAt", 0L);
+                                if (when <= 0L) {
+                                    when = task.getLong("dueAt", 0L);
+                                }
+                                if (when <= 0L || task.getBoolean("completed", false)) {
+                                    continue;
+                                }
+                                LinearLayout row = card();
+                                row.setOrientation(LinearLayout.HORIZONTAL);
+                                LinearLayout texts = UiKit.vertical(MainActivity.this);
+                                texts.setLayoutParams(new LinearLayout.LayoutParams(0,
+                                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                                texts.addView(UiKit.text(MainActivity.this,
+                                        task.getString("title", "Reminder"), 14f, UiKit.TEXT, false));
+                                texts.addView(UiKit.text(MainActivity.this,
+                                        format.format(new Date(when)), 12f, UiKit.TEXT_DIM, false));
+                                row.addView(texts);
+                                sheet.addView(row);
+                                shown++;
+                            }
+                            if (shown == 0) {
+                                sheet.addView(UiKit.bodyText(MainActivity.this,
+                                        "No upcoming reminders. Ask INDRA to remind you, or use Triggers."));
+                            }
+                            sheet.addView(UiKit.bodyText(MainActivity.this,
+                                    "Call announcements and chat notifications can be enabled in Settings."));
+                        }
+                    });
+                } catch (final ApiClient.ApiException error) {
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            sheet.removeAllViews();
+                            sheet.addView(UiKit.bodyText(MainActivity.this,
+                                    "Cannot load reminders: " + error.getMessage()));
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    private LinearLayout card() {
+        return UiKit.card(this);
+    }
+
+    private void openNotificationSettings() {
+        Intent intent;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+        } else {
+            intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.parse("package:" + getPackageName()));
+        }
+        try {
+            startActivity(intent);
+        } catch (RuntimeException error) {
+            toast("This device has no notification settings screen");
+        }
+    }
+
+    private void applySystemBarAppearance() {
+        boolean dark = prefs.isDarkTheme();
+        getWindow().setStatusBarColor(UiKit.BG);
+        getWindow().setNavigationBarColor(UiKit.SURFACE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            View decor = getWindow().getDecorView();
+            int flags = decor.getSystemUiVisibility();
+            if (dark) {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            } else {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (dark) {
+                    flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                } else {
+                    flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                }
+            }
+            decor.setSystemUiVisibility(flags);
+        }
+    }
+
+    /** Switches the light/dark palette and rebuilds the shell. */
+    public void applyTheme(String theme) {
+        prefs.setTheme(theme);
+        UiKit.applyTheme(prefs.isDarkTheme());
+        applySystemBarAppearance();
+        homeScreen = null;
+        chatScreen = null;
+        voiceScreen = null;
+        memoryScreen = null;
+        tasksScreen = null;
+        settingsScreen = null;
+        buildShell();
     }
 
     public Prefs prefs() {

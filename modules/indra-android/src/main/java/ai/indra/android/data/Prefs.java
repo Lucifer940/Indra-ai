@@ -45,6 +45,8 @@ public final class Prefs implements SecretCipher {
     private static final String K_OAUTH_VERIFIER = "oauthVerifier";
     private static final String K_LICENSE = "licenseKey";
     private static final String K_USE_EMBEDDED = "useEmbeddedEngine";
+    private static final String K_AURA = "auraStyle";
+    private static final String K_AURA_SPEED = "auraSpeed";
     private static final String K_LOCAL_SECRET_PREFIX = "localSecret:";
 
     /** Only used when the user points the app at an external server (e.g. a PC). */
@@ -186,6 +188,45 @@ public final class Prefs implements SecretCipher {
             return;
         }
         putSecret(K_BASE_URL, baseUrl.trim());
+    }
+
+    // ----------------------------------------------------------------- brand
+
+    /** Selected orb look (see {@code AuraStyle}); ENERGY by default. */
+    public String getAuraStyle() {
+        return plain(K_AURA, "ENERGY");
+    }
+
+    public void setAuraStyle(String id) {
+        raw.edit().putString(K_AURA, id == null ? "ENERGY" : id).apply();
+    }
+
+    /** Orb animation speed, 0.5 (calm) to 2.0 (lively). */
+    public float getAuraSpeed() {
+        return raw.getFloat(K_AURA_SPEED, 1.0f);
+    }
+
+    public void setAuraSpeed(float speed) {
+        raw.edit().putFloat(K_AURA_SPEED, Math.max(0.4f, Math.min(2f, speed))).apply();
+    }
+
+    /** Display name of the signed-in user (empty when unknown). */
+    public String getDisplayName() {
+        JsonObject user = getUser();
+        if (user == null) {
+            return "";
+        }
+        String name = user.getString("displayName", "");
+        return name == null ? "" : name;
+    }
+
+    public void setTheme(String theme) {
+        raw.edit().putString(K_THEME, theme == null || theme.trim().isEmpty() ? "light" : theme.trim()).apply();
+    }
+
+    /** True when the user picked the dark theme. */
+    public boolean isDarkTheme() {
+        return "dark".equalsIgnoreCase(getTheme());
     }
 
     // ----------------------------------------------------------------- device
