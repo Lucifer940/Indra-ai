@@ -26,7 +26,7 @@ public final class BackendConfig {
     private String bootstrapAdminPassword;
 
     private BackendConfig(Map<String, String> values) {
-        this.values = values;
+        this.values.putAll(values);
         this.dataDir = new File(get("INDRA_DATA_DIR", defaultDataDir()));
     }
 
@@ -161,7 +161,7 @@ public final class BackendConfig {
         return get("INDRA_ADMIN_EMAIL", null);
     }
 
-    public String getLong(String key, long fallback) {
+    public long getLong(String key, long fallback) {
         try {
             return Long.parseLong(get(key, String.valueOf(fallback)));
         } catch (NumberFormatException error) {
