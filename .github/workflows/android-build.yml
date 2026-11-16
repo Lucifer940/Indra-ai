@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # needed to post a build-log comment when compilation fails
 
 concurrency:
   group: android-${{ github.ref }}
@@ -80,9 +80,58 @@ jobs:
           java -version
 
       - name: Assemble debug APK
-        run: ./gradlew :indra-android:assembleDebug -Pandroid --no-daemon --stacktrace
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew :indra-android:assembleDebug -Pandroid --no-daemon --stacktrace 2>&1 | tee build.log
+
+      # GitHub does not always expose raw job logs to tooling, so the important
+      # lines are also posted as a commit comment where they are easy to read.
+      - name: Publish build errors
+        if: steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess
+
+          text = open('build.log', errors='replace').read()
+          lines = text.splitlines()
+          keep = []
+          for i, line in enumerate(lines):
+              if re.search(r'error:|e: |FAILURE:|What went wrong|Caused by|Could not resolve|Execution failed|> Task ', line):
+                  keep.append(line)
+          tail = '\n'.join(keep[-180:]) if keep else '\n'.join(lines[-180:])
+          summary = tail[-14000:]
+          body = ("### INDRA AI build failed\n\n"
+                  "Relevant lines from `./gradlew :indra-android:assembleDebug`:\n\n"
+                  "```text\n" + summary + "\n```\n")
+          payload = json.dumps({"body": body})
+          repo = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['GITHUB_SHA']
+          url = f"https://api.github.com/repos/{repo}/commits/{sha}/comments"
+          result = subprocess.run(
+              ["curl", "-sS", "-X", "POST", url,
+               "-H", f"Authorization: Bearer {os.environ['GH_TOKEN']}",
+               "-H", "Accept: application/vnd.github+json",
+               "-H", "Content-Type: application/json",
+               "--data-binary", "@-"],
+              input=payload, text=True, capture_output=True)
+          print(result.stdout[:500])
+          if result.returncode != 0:
+              print(result.stderr[:500])
+          PY
+
+      - name: Fail the job if compilation failed
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error::Android compilation failed - see the commit comment for the error lines."
+          exit 1
 
       - name: Verify APK
+        if: steps.build.outcome == 'success'
         run: |
           set -euo pipefail
           APK=$(find modules/indra-android/build/outputs/apk/debug -name '*.apk' -print -quit)
@@ -99,6 +148,7 @@ jobs:
           unzip -l "$APK" | grep -q "res/" || { echo "::error::APK has no resources"; exit 1; }
 
       - name: Upload APK artifact
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: indra-ai-debug-apk
