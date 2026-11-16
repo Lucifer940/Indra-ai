@@ -12,7 +12,8 @@ plugins {
 
 allprojects {
     group = 'ai.indra'
-    version = file('VERSION').text.trim()
+    // Resolve VERSION from the repository root, not from each module directory.
+    version = new File(rootDir, 'VERSION').text.trim()
 }
 
 subprojects {
