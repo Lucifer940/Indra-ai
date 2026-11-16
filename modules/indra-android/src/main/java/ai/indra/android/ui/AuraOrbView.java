@@ -56,7 +56,7 @@ public final class AuraOrbView extends View {
         logoPaint.setFilterBitmap(true);
         shadowPaint.setStyle(Paint.Style.FILL);
         try {
-            logo = BitmapFactory.decodeResource(getResources(), R.drawable.indra_logo);
+            logo = BitmapFactory.decodeResource(getResources(), R.drawable.indra_orb_face);
         } catch (RuntimeException error) {
             logo = null;
         }

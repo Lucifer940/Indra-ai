@@ -1,11 +1,9 @@
 package ai.indra.android.ui;
 
-import android.content.Intent;
 import android.graphics.Color;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -52,6 +50,7 @@ public final class HomeScreen extends Screen {
         column.addView(header());
         column.addView(orbBlock());
         column.addView(greeting());
+        column.addView(suggestions());
         column.addView(composer());
         column.addView(moreSection());
         column.addView(quickTools());
@@ -65,12 +64,17 @@ public final class HomeScreen extends Screen {
         LinearLayout row = UiKit.horizontal(host);
         row.setPadding(0, 0, 0, UiKit.dp(host, 6));
 
+        FrameLayout avatar = new FrameLayout(host);
+        avatar.setBackground(UiKit.brandGradient(host, 30f));
+        avatar.setPadding(UiKit.dp(host, 2), UiKit.dp(host, 2), UiKit.dp(host, 2), UiKit.dp(host, 2));
         ImageView logo = new ImageView(host);
-        logo.setImageResource(R.drawable.indra_logo);
+        logo.setImageResource(R.drawable.indra_orb_face);
         logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(UiKit.dp(host, 54), UiKit.dp(host, 54));
-        logo.setLayoutParams(logoParams);
-        row.addView(logo);
+        avatar.addView(logo, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(UiKit.dp(host, 50), UiKit.dp(host, 50));
+        avatar.setLayoutParams(logoParams);
+        row.addView(avatar);
 
         LinearLayout brand = UiKit.vertical(host);
         brand.setPadding(UiKit.dp(host, 10), 0, 0, 0);
@@ -108,20 +112,63 @@ public final class HomeScreen extends Screen {
         return view;
     }
 
+    /**
+     * Three live starters: tapping one sends that message and opens the conversation, so the
+     * empty space on tall screens does real work instead of padding.
+     */
+    private View suggestions() {
+        LinearLayout row = UiKit.horizontal(host);
+        row.setGravity(Gravity.CENTER);
+        row.setPadding(0, 0, 0, UiKit.dp(host, 16));
+
+        final String[] starters = {
+                "Summarise my day",
+                "Help me plan something",
+                "What do you remember?",
+        };
+        for (int i = 0; i < starters.length; i++) {
+            final String text = starters[i];
+            TextView chip = UiKit.chip(host, text, UiKit.SECONDARY);
+            chip.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f);
+            chip.setPadding(UiKit.dp(host, 14), UiKit.dp(host, 9), UiKit.dp(host, 14), UiKit.dp(host, 9));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            if (i > 0) {
+                params.leftMargin = UiKit.dp(host, 8);
+            }
+            chip.setLayoutParams(params);
+            chip.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    host.sendMessage(text, false);
+                    host.openTab(1);
+                }
+            });
+            row.addView(chip);
+        }
+        return row;
+    }
+
     private View orbBlock() {
+        // The orb owns the flexible space: tall phones get a larger hologram, small phones
+        // keep the 280dp minimum and simply scroll.
         FrameLayout frame = new FrameLayout(host);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, UiKit.dp(host, 300));
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
         params.topMargin = UiKit.dp(host, 4);
+        params.bottomMargin = UiKit.dp(host, 8);
         frame.setLayoutParams(params);
+        frame.setMinimumHeight(UiKit.dp(host, 280));
+
         orb.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         frame.addView(orb);
 
-        TextView chip = UiKit.chip(host, "AI Aura · " + orb.getAura().getLabel(), UiKit.SECONDARY);
+        TextView chip = UiKit.chip(host, "AI Aura \u00b7 " + orb.getAura().getLabel(), UiKit.SECONDARY);
         FrameLayout.LayoutParams chipParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         chipParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        chipParams.bottomMargin = UiKit.dp(host, 2);
         chip.setLayoutParams(chipParams);
         chip.setOnClickListener(new View.OnClickListener() {
             @Override
