@@ -298,6 +298,12 @@ jobs:
           test -s "$APK"; test -s "$AAB"
           cp "$APK" indra-android-release.apk
           cp "$AAB" indra-android-release.aab
+          APKSIGNER="${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools/34.0.0/apksigner"
+          if [ -x "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs indra-android-release.apk | head -5
+          else
+            echo "::warning::apksigner not found - signature not verified"
+          fi
           sha256sum indra-android-release.apk indra-android-release.aab > release-sha256.txt
           cat release-sha256.txt
           unzip -l indra-android-release.apk | grep -E "classes.dex|AndroidManifest.xml" | head -5

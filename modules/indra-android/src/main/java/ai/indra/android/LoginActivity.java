@@ -1,5 +1,7 @@
 package ai.indra.android;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -91,6 +93,17 @@ public class LoginActivity extends AppCompatActivity {
                 12f, UiKit.TEXT_DIM, false);
         skipHint.setPadding(0, UiKit.dp(this, 6), 0, UiKit.dp(this, 14));
         column.addView(skipHint);
+
+        Button licence = UiKit.button(this, "I have a licence key", false);
+        licence.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        licence.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLicenceDialog();
+            }
+        });
+        column.addView(licence);
 
         column.addView(UiKit.subtitle(this, "Optional: sign in or create an account"));
 
@@ -217,6 +230,64 @@ public class LoginActivity extends AppCompatActivity {
                         public void run() {
                             button.setEnabled(true);
                             button.setText("Continue without signing in  →");
+                            error.setText(friendly(failure));
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Activates a licence without forcing a sign-up: the on-device session is
+     * created first (if needed), then the key is validated by the engine and kept
+     * encrypted on the device.
+     */
+    private void showLicenceDialog() {
+        final EditText input = UiKit.singleLine(this, "INDRA-XXXX-XXXX-XXXX");
+        input.setText(prefs.getLicenseKey());
+        new AlertDialog.Builder(this)
+                .setTitle("Licence key")
+                .setMessage("Enter the key you were given. It is stored encrypted on this device.")
+                .setView(input)
+                .setPositiveButton("Activate", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        activateLicence(input.getText().toString().trim());
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void activateLicence(final String key) {
+        if (key.isEmpty()) {
+            error.setText("Enter a licence key first");
+            return;
+        }
+        error.setText("Checking the licence…");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (!session.isSignedIn()) {
+                        session.continueLocally();
+                    }
+                    final JsonObject result = api.activateLicense(key);
+                    prefs.setLicenseKey(key);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            String message = result.getString("message", "Licence activated");
+                            android.widget.Toast.makeText(LoginActivity.this, message,
+                                    android.widget.Toast.LENGTH_LONG).show();
+                            goToMain();
+                        }
+                    });
+                } catch (final ApiClient.ApiException failure) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
                             error.setText(friendly(failure));
                         }
                     });

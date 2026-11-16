@@ -120,7 +120,8 @@ streaming and error handling are unchanged; only the bind address differs.
    GitHub Models. If the network drops, INDRA says so and answers with the on-device brain instead of
    pretending a cloud model replied.
 5. Signing in with an email/Google/GitHub account is optional (Settings → Account, or the login screen).
-   The licence entry lives there too.
+   **I have a licence key** on the login screen activates a licence without creating an account; you can
+   also change it later under Settings → Licence.
 
 Nothing is exposed to the network: the engine binds to loopback only, so no other device can reach it.
 

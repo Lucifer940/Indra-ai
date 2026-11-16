@@ -134,7 +134,8 @@ keytool -genkeypair -v -keystore indra-release.jks -alias indra -keyalg RSA -key
 
 ### Pointing the app at your server
 
-- Emulator: `http://10.0.2.2:8420` (already the default).
+- On-device engine (default): nothing to configure - the app starts its own backend on `127.0.0.1`.
+- Emulator, using a backend on the host: `http://10.0.2.2:8420` (set it in Settings → Engine → Server).
 - Real phone on the same Wi-Fi: `http://<your-PC-LAN-IP>:8420` — open **Settings → Server**, enter it, save.
   Android permits cleartext only for `10.0.2.2`, `127.0.0.1` and `localhost`; for a LAN IP you must either
   use HTTPS or add that host to `res/xml/network_security_config.xml` for personal testing.
