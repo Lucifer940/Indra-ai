@@ -1,5 +1,7 @@
 package ai.indra.android;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -13,9 +15,9 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import ai.indra.android.data.ApiClient;
+import ai.indra.android.local.LocalBackend;
 import ai.indra.android.data.Prefs;
 import ai.indra.android.data.SessionManager;
-import ai.indra.android.ui.CharacterView;
 import ai.indra.android.ui.UiKit;
 import ai.indra.core.json.JsonObject;
 import ai.indra.core.util.Log;
@@ -29,6 +31,9 @@ import java.util.UUID;
  * server address field. No credentials are ever stored in the APK.
  */
 public class LoginActivity extends AppCompatActivity {
+
+    /** Set to true when opened from Settings to add/link an account. */
+    public static final String EXTRA_FORCE_SHOW = "forceShow";
 
     private EditText email;
     private EditText password;
@@ -48,7 +53,9 @@ public class LoginActivity extends AppCompatActivity {
         prefs = app.prefs();
         api = app.api();
         session = app.session();
-        if (prefs.hasSession()) {
+        boolean forceShow = getIntent() != null
+                && getIntent().getBooleanExtra(EXTRA_FORCE_SHOW, false);
+        if (!forceShow && prefs.hasSession()) {
             goToMain();
             return;
         }
@@ -61,9 +68,11 @@ public class LoginActivity extends AppCompatActivity {
         LinearLayout column = UiKit.screen(this, 22);
         column.setBackgroundColor(UiKit.BG);
 
-        CharacterView character = new CharacterView(this);
-        column.addView(character, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-                UiKit.dp(this, 200)));
+        android.widget.ImageView logo = new android.widget.ImageView(this);
+        logo.setImageResource(R.drawable.indra_character);
+        logo.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        column.addView(logo, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                UiKit.dp(this, 190)));
 
         TextView title = UiKit.title(this, getString(R.string.login_title));
         title.setGravity(android.view.Gravity.CENTER);
@@ -72,6 +81,37 @@ public class LoginActivity extends AppCompatActivity {
         subtitle.setGravity(android.view.Gravity.CENTER);
         subtitle.setPadding(0, 0, 0, UiKit.dp(this, 16));
         column.addView(subtitle);
+
+        Button skip = UiKit.button(this, "Continue without signing in  →", true);
+        skip.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        skip.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startLocally((Button) v);
+            }
+        });
+        column.addView(skip);
+
+        TextView skipHint = UiKit.text(this,
+                "INDRA runs on this phone. No PC, no account and no internet are needed for chat, "
+                        + "memory, tasks and reminders. Sign in only if you want sync or the licence.",
+                12f, UiKit.TEXT_DIM, false);
+        skipHint.setPadding(0, UiKit.dp(this, 6), 0, UiKit.dp(this, 14));
+        column.addView(skipHint);
+
+        Button licence = UiKit.button(this, "I have a licence key", false);
+        licence.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        licence.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLicenceDialog();
+            }
+        });
+        column.addView(licence);
+
+        column.addView(UiKit.subtitle(this, "Optional: sign in or create an account"));
 
         displayName = UiKit.singleLine(this, getString(R.string.display_name));
         column.addView(displayName);
@@ -157,8 +197,12 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
         column.addView(saveServer);
-        column.addView(UiKit.subtitle(this, "Emulator: http://10.0.2.2:8420 · Real device: your PC's LAN IP, "
-                + "for example http://192.168.1.20:8420 · Production: your HTTPS domain."));
+        column.addView(UiKit.subtitle(this, "Leave this empty to use the engine inside the phone. "
+                + "Set it only to share one account with your PC, for example http://192.168.1.20:8420, "
+                + "or a hosted HTTPS domain."));
+        final TextView engineState = UiKit.text(this, engineSummary(), 12f, UiKit.TEXT_DIM, false);
+        engineState.setPadding(0, UiKit.dp(this, 4), 0, 0);
+        column.addView(engineState);
 
         TextView credit = UiKit.text(this, "INDRA AI · created by " + getString(R.string.creator),
                 12f, UiKit.TEXT_DIM, false);
@@ -168,6 +212,103 @@ public class LoginActivity extends AppCompatActivity {
 
         scroll.addView(column);
         setContentView(scroll);
+    }
+
+    /** One tap path: no account, no server, straight into the app. */
+    private void startLocally(final Button button) {
+        button.setEnabled(false);
+        button.setText("Starting INDRA…");
+        error.setText(engineSummary());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    session.continueLocally();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            goToMain();
+                        }
+                    });
+                } catch (final ApiClient.ApiException failure) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            button.setEnabled(true);
+                            button.setText("Continue without signing in  →");
+                            error.setText(friendly(failure));
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Activates a licence without forcing a sign-up: the on-device session is
+     * created first (if needed), then the key is validated by the engine and kept
+     * encrypted on the device.
+     */
+    private void showLicenceDialog() {
+        final EditText input = UiKit.singleLine(this, "INDRA-XXXX-XXXX-XXXX");
+        input.setText(prefs.getLicenseKey());
+        new AlertDialog.Builder(this)
+                .setTitle("Licence key")
+                .setMessage("Enter the key you were given. It is stored encrypted on this device.")
+                .setView(input)
+                .setPositiveButton("Activate", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        activateLicence(input.getText().toString().trim());
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void activateLicence(final String key) {
+        if (key.isEmpty()) {
+            error.setText("Enter a licence key first");
+            return;
+        }
+        error.setText("Checking the licence…");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (!session.isSignedIn()) {
+                        session.continueLocally();
+                    }
+                    final JsonObject result = api.activateLicense(key);
+                    prefs.setLicenseKey(key);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            String message = result.getString("message", "Licence activated");
+                            android.widget.Toast.makeText(LoginActivity.this, message,
+                                    android.widget.Toast.LENGTH_LONG).show();
+                            goToMain();
+                        }
+                    });
+                } catch (final ApiClient.ApiException failure) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            error.setText(friendly(failure));
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private String engineSummary() {
+        LocalBackend engine = LocalBackend.get(this);
+        if (engine.baseUrl() != null) {
+            return "On-device engine ready (port " + engine.port() + ")";
+        }
+        String failure = engine.failure();
+        return failure == null ? "Starting the on-device engine…" : "On-device engine: " + failure;
     }
 
     private void submit() {
@@ -225,7 +366,10 @@ public class LoginActivity extends AppCompatActivity {
             return "An account with that email already exists - sign in instead";
         }
         if (failure.getStatus() == 0) {
-            return "Cannot reach the server at " + prefs.getBaseUrl()
+            String engine = LocalBackend.get(this).describe();
+            return api.isLocal()
+                    ? "The on-device engine is not responding (" + engine + "). Restart the app to try again."
+                    : "Cannot reach the server at " + prefs.getBaseUrl()
                     + ". Check the address and that the backend is running.";
         }
         if (failure.getStatus() == 429) {
@@ -291,7 +435,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void goToMain() {
-        startActivity(new Intent(this, MainActivity.class));
+        Intent main = new Intent(this, MainActivity.class);
+        main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        main.putExtra("refreshSession", true);
+        startActivity(main);
         finish();
     }
 }

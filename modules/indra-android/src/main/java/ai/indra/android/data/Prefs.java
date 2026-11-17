@@ -44,8 +44,13 @@ public final class Prefs implements SecretCipher {
     private static final String K_OAUTH_STATE = "oauthState";
     private static final String K_OAUTH_VERIFIER = "oauthVerifier";
     private static final String K_LICENSE = "licenseKey";
+    private static final String K_USE_EMBEDDED = "useEmbeddedEngine";
+    private static final String K_AURA = "auraStyle";
+    private static final String K_AURA_SPEED = "auraSpeed";
+    private static final String K_LOCAL_SECRET_PREFIX = "localSecret:";
 
-    private static final String DEFAULT_BASE_URL = "http://10.0.2.2:8420";
+    /** Only used when the user points the app at an external server (e.g. a PC). */
+    private static final String DEFAULT_BASE_URL = "";
 
     private final SharedPreferences raw;
     private final SecretCipher cipher;
@@ -146,8 +151,36 @@ public final class Prefs implements SecretCipher {
 
     // ----------------------------------------------------------------- server
 
+    /** Remote server address (empty = never configured). */
     public String getBaseUrl() {
         return getSecret(K_BASE_URL, DEFAULT_BASE_URL);
+    }
+
+    /** True when the app should use the backend embedded in the phone. */
+    public boolean useEmbeddedBackend() {
+        return raw.getBoolean(K_USE_EMBEDDED, true);
+    }
+
+    public void setUseEmbeddedBackend(boolean embedded) {
+        raw.edit().putBoolean(K_USE_EMBEDDED, embedded).apply();
+    }
+
+    /**
+     * Random secret for the embedded engine's signing/encryption keys, stored
+     * encrypted with the Android Keystore key. Created once per install.
+     */
+    public String getOrCreateLocalSecret(String name) {
+        String key = K_LOCAL_SECRET_PREFIX + name;
+        String existing = getSecret(key, null);
+        if (existing != null && existing.length() >= 32) {
+            return existing;
+        }
+        byte[] random = new byte[48];
+        new java.security.SecureRandom().nextBytes(random);
+        String secret = android.util.Base64.encodeToString(random,
+                android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE);
+        putSecret(key, secret);
+        return secret;
     }
 
     public void setBaseUrl(String baseUrl) {
@@ -155,6 +188,45 @@ public final class Prefs implements SecretCipher {
             return;
         }
         putSecret(K_BASE_URL, baseUrl.trim());
+    }
+
+    // ----------------------------------------------------------------- brand
+
+    /** Selected orb look (see {@code AuraStyle}); ENERGY by default. */
+    public String getAuraStyle() {
+        return plain(K_AURA, "ENERGY");
+    }
+
+    public void setAuraStyle(String id) {
+        raw.edit().putString(K_AURA, id == null ? "ENERGY" : id).apply();
+    }
+
+    /** Orb animation speed, 0.5 (calm) to 2.0 (lively). */
+    public float getAuraSpeed() {
+        return raw.getFloat(K_AURA_SPEED, 1.0f);
+    }
+
+    public void setAuraSpeed(float speed) {
+        raw.edit().putFloat(K_AURA_SPEED, Math.max(0.4f, Math.min(2f, speed))).apply();
+    }
+
+    /** Display name of the signed-in user (empty when unknown). */
+    public String getDisplayName() {
+        JsonObject user = getUser();
+        if (user == null) {
+            return "";
+        }
+        String name = user.getString("displayName", "");
+        return name == null ? "" : name;
+    }
+
+    public void setTheme(String theme) {
+        raw.edit().putString(K_THEME, theme == null || theme.trim().isEmpty() ? "light" : theme.trim()).apply();
+    }
+
+    /** True when the user picked the dark theme. */
+    public boolean isDarkTheme() {
+        return "dark".equalsIgnoreCase(getTheme());
     }
 
     // ----------------------------------------------------------------- device

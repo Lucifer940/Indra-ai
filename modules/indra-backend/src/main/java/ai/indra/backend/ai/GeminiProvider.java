@@ -9,7 +9,6 @@ import ai.indra.core.ai.TokenListener;
 import ai.indra.core.json.JsonArray;
 import ai.indra.core.json.JsonObject;
 
-import java.net.http.HttpResponse;
 import java.net.URLEncoder;
 
 /** Google Gemini generateContent client. */
@@ -68,7 +67,7 @@ public final class GeminiProvider implements AiProvider {
         generationConfig.put("maxOutputTokens", Integer.valueOf(request.getMaxTokens()));
         body.put("generationConfig", generationConfig);
 
-        HttpResponse<String> response = HttpProviderSupport.postJson(url, body.toJson(),
+        HttpProviderSupport.JsonResponse response = HttpProviderSupport.postJson(url, body.toJson(),
                 "x-goog-api-key", apiKey);
         HttpProviderSupport.checkStatus(response, "Gemini");
         JsonObject json = JsonObject.parse(response.body());

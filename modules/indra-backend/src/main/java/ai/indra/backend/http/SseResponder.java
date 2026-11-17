@@ -6,17 +6,15 @@ import ai.indra.core.security.Crypto;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import com.sun.net.httpserver.HttpExchange;
-
 /** Server-Sent-Events writer used for streaming chat responses. */
 public final class SseResponder {
 
-    private final HttpExchange exchange;
+    private final Exchange exchange;
     private OutputStream out;
     private boolean started;
     private boolean closed;
 
-    public SseResponder(HttpExchange exchange) {
+    public SseResponder(Exchange exchange) {
         this.exchange = exchange;
     }
 
@@ -27,7 +25,6 @@ public final class SseResponder {
         started = true;
         exchange.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
         exchange.getResponseHeaders().set("Cache-Control", "no-cache, no-store");
-        exchange.getResponseHeaders().set("Connection", "keep-alive");
         exchange.getResponseHeaders().set("X-Accel-Buffering", "no");
         exchange.sendResponseHeaders(200, 0);
         out = exchange.getResponseBody();
@@ -75,9 +72,10 @@ public final class SseResponder {
             if (out != null) {
                 out.flush();
             }
-            exchange.close();
         } catch (IOException ignored) {
-            // client disconnected
+            // client already disconnected
+        } finally {
+            exchange.finish();
         }
     }
 }

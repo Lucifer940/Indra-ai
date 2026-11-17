@@ -134,7 +134,8 @@ keytool -genkeypair -v -keystore indra-release.jks -alias indra -keyalg RSA -key
 
 ### Pointing the app at your server
 
-- Emulator: `http://10.0.2.2:8420` (already the default).
+- On-device engine (default): nothing to configure - the app starts its own backend on `127.0.0.1`.
+- Emulator, using a backend on the host: `http://10.0.2.2:8420` (set it in Settings → Engine → Server).
 - Real phone on the same Wi-Fi: `http://<your-PC-LAN-IP>:8420` — open **Settings → Server**, enter it, save.
   Android permits cleartext only for `10.0.2.2`, `127.0.0.1` and `localhost`; for a LAN IP you must either
   use HTTPS or add that host to `res/xml/network_security_config.xml` for personal testing.
@@ -182,3 +183,31 @@ bash scripts/make-release-zip.sh       # dist/indra-ai-v1.1.1-source.zip
 
 The release script excludes build outputs, `node_modules`, IDE folders and any file matching `*.env`,
 `*.jks` or `*.keystore`.
+
+## 7. Android release build and signing
+
+```bash
+export INDRA_KEYSTORE_PATH=/path/to/indra-release.jks
+export INDRA_KEYSTORE_PASSWORD=...     # never commit these
+export INDRA_KEY_ALIAS=indra
+export INDRA_KEY_PASSWORD=...
+./gradlew :indra-android:assembleRelease :indra-android:bundleRelease
+# modules/indra-android/build/outputs/apk/release/*.apk
+# modules/indra-android/build/outputs/bundle/release/*.aab
+```
+
+Without those variables the release build is produced **unsigned**; CI signs it with repository secrets or
+with a throw-away key (see `.github/workflows/android-build.yml`). Add the four secrets to get a stable
+signing identity across builds.
+
+## 8. The engine on the phone
+
+`IndraApp.onCreate()` starts `LocalBackend`, which builds `BackendConfig.fromMap(...)` (bind `127.0.0.1`,
+port `0`, local mode on, random per-install secrets) and runs the same `ApiApplication` used on a PC. The data
+directory is `filesDir/engine` and every file in `filesDir/engine/store` is encrypted with the Keystore key.
+`ApiClient` resolves the URL at call time (`LocalBackend.awaitReady`), so an activity that starts before the
+engine finishes booting simply waits instead of failing.
+
+To debug it from a PC: `adb logcat | grep INDRA` shows `LocalBackend: On-device engine ready at
+http://127.0.0.1:<port>`. That port is bound to loopback inside the phone only; use
+`adb forward tcp:9999 tcp:<port>` if you need to call it from your machine.

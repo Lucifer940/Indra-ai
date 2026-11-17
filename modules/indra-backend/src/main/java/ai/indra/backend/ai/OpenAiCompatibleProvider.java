@@ -11,8 +11,6 @@ import ai.indra.core.json.JsonObject;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -68,7 +66,7 @@ public final class OpenAiCompatibleProvider implements AiProvider {
     @Override
     public ChatResult complete(ChatRequest request) throws AiProviderException {
         long started = System.currentTimeMillis();
-        HttpResponse<String> response = HttpProviderSupport.postJson(endpoint(), payload(request, false).toJson(),
+        HttpProviderSupport.JsonResponse response = HttpProviderSupport.postJson(endpoint(), payload(request, false).toJson(),
                 "Authorization", "Bearer " + apiKey);
         HttpProviderSupport.checkStatus(response, label);
         JsonObject json = JsonObject.parse(response.body());
@@ -90,17 +88,13 @@ public final class OpenAiCompatibleProvider implements AiProvider {
 
     @Override
     public void stream(ChatRequest request, TokenListener listener) throws AiProviderException {
-        HttpRequest httpRequest = HttpProviderSupport.requestBuilder(endpoint(),
-                "Authorization", "Bearer " + apiKey)
-                .POST(HttpRequest.BodyPublishers.ofString(payload(request, true).toJson(), StandardCharsets.UTF_8))
-                .build();
         StringBuilder full = new StringBuilder();
+        HttpProviderSupport.StreamResponse response = HttpProviderSupport.postStream(endpoint(),
+                payload(request, true).toJson(), "Authorization", "Bearer " + apiKey);
         try {
-            HttpResponse<java.io.InputStream> response = HttpProviderSupport.CLIENT.send(httpRequest,
-                    HttpResponse.BodyHandlers.ofInputStream());
-            int status = response.statusCode();
+            int status = response.status();
             if (status < 200 || status >= 300) {
-                response.body().close();
+                response.close();
                 if (status == 401 || status == 403) {
                     throw new AiProviderException(AiProviderException.Kind.AUTH_FAILED,
                             label + " rejected the API key.", status, null);
@@ -145,12 +139,6 @@ public final class OpenAiCompatibleProvider implements AiProvider {
         } catch (java.io.IOException error) {
             AiProviderException wrapped = new AiProviderException(AiProviderException.Kind.NETWORK,
                     "Streaming failed: " + error.getMessage(), 0, error);
-            listener.onError(wrapped);
-            throw wrapped;
-        } catch (InterruptedException error) {
-            Thread.currentThread().interrupt();
-            AiProviderException wrapped = new AiProviderException(AiProviderException.Kind.NETWORK,
-                    "Streaming was interrupted", 0, error);
             listener.onError(wrapped);
             throw wrapped;
         }

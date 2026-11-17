@@ -88,13 +88,56 @@ scripts/                One-command runners and packaging helpers.
 
 ## Get the Android APK without installing a toolchain
 
-Every push builds the app on GitHub's runners. Open **Actions → Android build → the latest run** and
-download the **`indra-ai-debug-apk`** artifact; it contains `indra-android-debug.apk` plus its SHA-256.
-Install it with `adb install -r indra-android-debug.apk`, or copy it to the phone and tap it (allow
+Every push builds the app on GitHub's runners. Open **Actions → Android build → the latest run**:
+
+| Artifact | Contents |
+| --- | --- |
+| `indra-ai-debug-apk` | `indra-android-debug.apk` + SHA-256 (debug key, installable) |
+| `indra-ai-release` | `indra-android-release.apk`, `indra-android-release.aab`, `release-sha256.txt` |
+| `test-reports` | JUnit reports for `indra-core` and `indra-backend` + `test-summary.txt` |
+
+Install with `adb install -r indra-android-release.apk`, or copy it to the phone and tap it (allow
 "install unknown apps" for your file manager).
 
-The APK is a debug build signed with the standard Android debug key: fine for your own phone, but for
-Play Store distribution create your own keystore (see `docs/BUILD_AND_RUN.md`).
+The release APK/AAB are signed by CI. If the repository has the four secrets
+`INDRA_KEYSTORE_BASE64`, `INDRA_KEYSTORE_PASSWORD`, `INDRA_KEY_ALIAS`, `INDRA_KEY_PASSWORD` they are
+signed with your key; otherwise CI generates a throw-away key for that run (installable, but a later
+build signed with a different key cannot update it — add the secrets for a stable identity). No key is
+ever committed.
+
+## Look and feel
+
+Premium light theme by default (dark available in Settings → Appearance): white surfaces, crimson
+`#FF2B4E` primary, pink, violet and electric-blue accents, hairline cards with soft shadows, gradient
+primary actions and a holographic orb built from the INDRA character mark.
+
+- **Home** — logo header, notification + settings shortcuts, animated aura orb, greeting, composer,
+  quick-action cards for Voice, Memory, Triggers and AI Aura.
+- **AI Aura** — six looks (Energy, Galaxy, Fire, Crystal, Neon, Aurora) and four animation speeds,
+  saved per device.
+- **Bottom navigation** — Home · Chat · Voice · Triggers · Settings, with a floating microphone.
+- Brand artwork lives in `modules/indra-android/src/main/res/drawable-nodpi/` (logo, character) and
+  the launcher icons in `mipmap-*`; the full-size asset used to generate them is kept out of the APK.
+
+## Run it on the phone — no PC, no account, no server
+
+The phone is self-contained: `indra-backend`, the very same module that runs on a PC, is embedded in the
+APK and started on `127.0.0.1` (port assigned by the OS) when the app launches. Rest, auth, rate limiting,
+streaming and error handling are unchanged; only the bind address differs.
+
+1. Install the APK and open INDRA.
+2. On the login screen tap **Continue without signing in →**. INDRA creates a device session, encrypted
+   with the Android Keystore, and opens the main screen immediately.
+3. Everything works offline: chat uses the on-device brain, memory / tasks / reminders are stored in the
+   app sandbox encrypted at rest, voice and the animated character work as before.
+4. Add an API key in **Settings → API keys** to use OpenAI, Gemini, DeepSeek, Groq, Claude, OpenRouter or
+   GitHub Models. If the network drops, INDRA says so and answers with the on-device brain instead of
+   pretending a cloud model replied.
+5. Signing in with an email/Google/GitHub account is optional (Settings → Account, or the login screen).
+   **I have a licence key** on the login screen activates a licence without creating an account; you can
+   also change it later under Settings → Licence.
+
+Nothing is exposed to the network: the engine binds to loopback only, so no other device can reach it.
 
 ## Quick start
 
@@ -129,9 +172,9 @@ export ANDROID_HOME=/path/to/Android/Sdk
 cd modules/indra-android && ../../gradlew assembleDebug
 adb install -r build/outputs/apk/debug/indra-android-debug.apk
 ```
-The emulator reaches the host backend at `http://10.0.2.2:8420` (already the default). On a real phone,
-open **Settings → Server** and enter your PC's LAN address, e.g. `http://192.168.1.20:8420`, or your
-HTTPS domain in production.
+The app uses the engine embedded in the phone by default, so no server address is needed. To share one
+account with a PC instead, open **Settings → Engine → Server** and enter the PC's LAN address, e.g.
+`http://192.168.1.20:8420` (or an HTTPS domain). "Use on-device engine" switches back.
 
 Full step-by-step instructions: [`docs/BUILD_AND_RUN.md`](docs/BUILD_AND_RUN.md).
 
@@ -174,11 +217,14 @@ AES-256-GCM) or supplied as environment variables. More detail: [`config/api-key
 This repository is source code produced without a working JDK, Android SDK or Gradle distribution in the
 authoring environment. Therefore:
 
-- The Android APK **is** built by CI (`android-build.yml`) and has compiled and packaged successfully.
-  The `indra-core` and `indra-backend` unit tests compile and pass on the same runners, and their job
-  (`Core and backend tests`) now gates the run — a red suite fails the workflow.
-- The APK has not been installed or exercised on a physical Android device from this environment; only the
-  CI packaging step has been verified.
+- The Android APK/AAB **are** built by CI (`android-build.yml`), debug and signed release, and the
+  `indra-core` + `indra-backend` suites compile and pass on the same runners (that job gates the run).
+- The embedded engine is covered by `LocalModeIntegrationTest` (loopback bind, OS-assigned port, device
+  session, SSE streaming, memory/task persistence across a restart) — see `docs/TESTING.md`.
+- No APK has been installed or exercised on a physical Android device from the authoring environment: the
+  on-device engine cannot be launched there (no JDK/Android SDK), so "works on a phone" is supported by CI
+  builds plus the integration tests, not by a device run. Please report anything a device shows that these
+  miss.
 - Google/GitHub sign-in, weather, search and AI answers require their respective server-side credentials.
   Without them the app degrades gracefully and says so — it does not invent results.
 - Windows dictation depends on the speech components installed in Windows.

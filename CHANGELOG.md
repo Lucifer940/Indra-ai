@@ -1,6 +1,68 @@
 # Changelog — INDRA AI
 
-## 1.1.2 — current
+## 1.3.0 — current
+
+### Added
+- **Brand identity.** The supplied INDRA AI artwork is now the launcher icon (all densities,
+  round + adaptive foreground), the in-app header logo, the splash artwork and the orb core.
+  Tagline is "YOUR PERSONAL AI ASSISTANT".
+- **Premium light theme** (default) with a crimson/pink/violet/electric-blue palette, hairline
+  glass cards, gradient primary buttons, circular icon buttons and a dark variant. Theme is
+  switchable in Settings → Appearance and applied at startup (`UiKit.applyTheme`).
+- **New Home screen** (`HomeScreen`): logo header, notification and settings shortcuts, large
+  animated aura orb, personalised greeting, composer with attachment shortcut, "More" cards
+  (Voice Mode, Memory, Triggers, AI Aura) and a quick-tools card (whiteboard, weather, history,
+  API keys). Every control opens a feature that exists.
+- **AI Aura**: six orb looks (Energy, Galaxy, Fire, Crystal, Neon, Aurora) plus animation speed,
+  drawn by `AuraOrbView` (rotating sweep, breathing rings, speaking pulse) and saved per device.
+- **Five-tab shell**: Home / Chat / Voice / Triggers / Settings with a floating microphone that
+  is always one tap from listening. Memory stays reachable from Home and Settings.
+- Notifications panel (upcoming reminders + system notification settings) from the Home bell.
+
+### Fixed
+- **Login from Settings**: an account is no longer a one-way door. Settings → Account shows
+  *Sign in or create account* for device sessions (and *Switch account* otherwise), and the
+  login screen can now be opened on top of an existing session (`EXTRA_FORCE_SHOW`), returning
+  to a rebuilt main screen afterwards.
+- Orb animation stops when the view is off-screen instead of redrawing forever.
+
+## 1.2.0
+
+### Added
+- **The backend now runs inside the Android app.** `indra-backend` is a dependency of the app and
+  `ApiApplication` starts on `127.0.0.1` with an OS-assigned port at launch (`LocalBackend`), so the phone
+  needs no PC, emulator host or external server. REST routes, JWT auth, rate limiting, SSE streaming and
+  error mapping are the same code path as the desktop deployment.
+- **"Continue without signing in"** on the login screen: one tap creates an encrypted device session
+  (`POST /api/v1/auth/local`, available only in local mode) and opens the main screen. Email/Google/GitHub
+  sign-in and the licence remain optional.
+- **"I have a licence key"** on the login screen activates a licence without creating an account (the
+  device session is created first); the key is stored Keystore-encrypted and can be changed in Settings.
+- The test job also compiles the Windows desktop module, so shared-code changes cannot silently break it.
+- Portable `ai.indra.core.net.Http` (HttpURLConnection) used by every network call, replacing
+  `java.net.http`, which does not exist on Android.
+- Pure-Java HTTP/1.1 server (`LocalHttpServer` + `Exchange`): keep-alive, chunked request bodies and chunked
+  Server-Sent Events; replaces `com.sun.net.httpserver`.
+- At-rest encryption of the on-device store: every collection file is written as
+  `INDRA1:<AES-256-GCM>` with a key held by the Android Keystore (`KeystoreFileCodec`). JWT signing and the
+  API-key master key are random per install and stored Keystore-encrypted - nothing is hard-coded.
+- Signed release APK + AAB in CI (`Release APK + AAB` job, artifact `indra-ai-release`) using repository
+  secrets when present and a throw-away key otherwise.
+- `LocalModeIntegrationTest`: loopback bind, OS-assigned port, device session, SSE streaming and
+  memory/task persistence across an engine restart.
+
+### Changed
+- The app talks to its own engine by default; a remote server is an optional setting
+  (**Settings → Engine**), no longer the default. `API_BASE_URL` is now only a fallback.
+- `ChatService` falls back to the on-device brain on network/timeout provider errors and says so in the
+  reply instead of failing or implying a cloud answer.
+- Release builds are no longer minified (`minifyEnabled false`): shrinking is unverified on a device, and a
+  working build matters more than a smaller one.
+
+### Fixed
+- `SseResponder` no longer throws when the client disconnects mid-stream.
+
+## 1.1.2
 
 ### Fixed
 - `indra-backend` and `indra-core` test sources now compile: `BackendConfig` copies settings into its final map

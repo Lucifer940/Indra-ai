@@ -195,10 +195,75 @@ public final class SettingsScreen extends Screen {
                 host.showHistory();
             }
         }));
+        column.addView(valueRow("Memory", "What INDRA remembers about you", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                host.openTab(5);
+            }
+        }));
+        column.addView(valueRow("Reminders & tasks", "Everything scheduled", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                host.openTab(3);
+            }
+        }));
 
-        // Connection
-        column.addView(UiKit.sectionLabel(context, "Connection"));
-        column.addView(valueRow("Server", host.prefs().getBaseUrl(), new View.OnClickListener() {
+        // Appearance
+        column.addView(UiKit.sectionLabel(context, "Appearance & Aura"));
+        column.addView(valueRow("AI Aura",
+                ai.indra.android.ui.AuraStyle.fromId(host.prefs().getAuraStyle()).getLabel()
+                        + " - six holographic looks",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        host.showAuraPicker();
+                    }
+                }));
+        column.addView(valueRow("Orb animation speed",
+                Math.round(host.prefs().getAuraSpeed() * 100) + "%",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        host.showAuraSpeedDialog();
+                    }
+                }));
+        column.addView(valueRow("Theme",
+                host.prefs().isDarkTheme() ? "Dark" : "Light",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        String[] labels = {"Light", "Dark"};
+                        final String[] values = {"light", "dark"};
+                        new AlertDialog.Builder(host).setTitle("Theme")
+                                .setItems(labels, new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        host.applyTheme(values[which]);
+                                        host.toast("Theme applied");
+                                    }
+                                }).show();
+                    }
+                }));
+
+        // Engine / Connection
+        column.addView(UiKit.sectionLabel(context, "Engine"));
+        final ai.indra.android.local.LocalBackend engine =
+                ai.indra.android.local.LocalBackend.get(context);
+        column.addView(UiKit.subtitle(context, engine.describe()
+                + " · data encrypted with the Android Keystore, loopback only"));
+        column.addView(valueRow("Use on-device engine",
+                host.prefs().useEmbeddedBackend() ? "On (recommended)" : "Off - using a remote server",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        host.prefs().setUseEmbeddedBackend(true);
+                        host.toast("INDRA is using the engine inside this phone");
+                        host.openTab(4);
+                    }
+                }));
+        column.addView(valueRow("Server", host.prefs().getBaseUrl().isEmpty()
+                        ? "not set (on-device engine)" : host.prefs().getBaseUrl(),
+                new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 editText("Server URL", host.prefs().getBaseUrl(), new TextCallback() {
@@ -215,9 +280,9 @@ public final class SettingsScreen extends Screen {
                 });
             }
         }));
-        column.addView(UiKit.subtitle(context, "Default is http://10.0.2.2:8420 for the Android emulator. "
-                + "On a real phone use your PC's LAN address (for example http://192.168.1.20:8420) "
-                + "or your HTTPS domain in production."));
+        column.addView(UiKit.subtitle(context, "Nothing has to be configured: the app ships with its own "
+                + "backend. Set a server only to share one account with your PC "
+                + "(for example http://192.168.1.20:8420) or a hosted HTTPS domain."));
 
         // Account
         column.addView(UiKit.sectionLabel(context, "Account"));
@@ -236,6 +301,23 @@ public final class SettingsScreen extends Screen {
                         @Override
                         public void onClick(View v) {
                             host.openAdmin();
+                        }
+                    }));
+        }
+        if (host.session().isLocalAccount()) {
+            column.addView(valueRow("Sign in or create account",
+                    "Add an email account, keep this phone's data", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            host.openLogin();
+                        }
+                    }));
+        } else {
+            column.addView(valueRow("Switch account", "Sign in with another account",
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            host.openLogin();
                         }
                     }));
         }

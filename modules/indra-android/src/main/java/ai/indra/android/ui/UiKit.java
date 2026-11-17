@@ -24,19 +24,120 @@ import android.widget.TextView;
  */
 public final class UiKit {
 
-    public static final int BG = Color.parseColor("#080B18");
-    public static final int SURFACE = Color.parseColor("#111629");
-    public static final int SURFACE_HIGH = Color.parseColor("#1A2138");
-    public static final int ACCENT = Color.parseColor("#5B8CFF");
-    public static final int ACCENT_SOFT = Color.parseColor("#22305C");
-    public static final int SECONDARY = Color.parseColor("#8A5BFF");
-    public static final int TEXT = Color.parseColor("#E9EDFF");
-    public static final int TEXT_DIM = Color.parseColor("#9AA3C7");
-    public static final int SUCCESS = Color.parseColor("#3DD68C");
-    public static final int WARNING = Color.parseColor("#FFB84D");
-    public static final int ERROR = Color.parseColor("#FF5C7A");
+    // ---- Brand palette -------------------------------------------------------
+    // Premium light theme is the default: white surfaces with crimson, pink,
+    // violet and electric-blue holographic accents. Dark theme keeps the same
+    // accents on deep surfaces. Values are mutable so the theme can switch at
+    // runtime without recreating every constant reference.
+    public static int BG = Color.parseColor("#F6F7FC");
+    public static int SURFACE = Color.parseColor("#FFFFFF");
+    public static int SURFACE_HIGH = Color.parseColor("#FFF3F6");
+    public static int ACCENT = Color.parseColor("#FF2B4E");
+    public static int ACCENT_SOFT = Color.parseColor("#FFE3EA");
+    public static int SECONDARY = Color.parseColor("#7C4DFF");
+    public static int PINK = Color.parseColor("#FF4D8D");
+    public static int BLUE = Color.parseColor("#2F80ED");
+    public static int TEXT = Color.parseColor("#14142B");
+    public static int TEXT_DIM = Color.parseColor("#6E7191");
+    public static int STROKE = Color.parseColor("#F0DCE3");
+    public static int SUCCESS = Color.parseColor("#12B76A");
+    public static int WARNING = Color.parseColor("#F79009");
+    public static int ERROR = Color.parseColor("#E01E37");
+
+    private static boolean dark;
 
     private UiKit() {
+    }
+
+    /** True when the dark palette is active. */
+    public static boolean isDark() {
+        return dark;
+    }
+
+    /** Applies the light or dark palette. Called once when the app starts. */
+    public static void applyTheme(boolean useDark) {
+        dark = useDark;
+        if (useDark) {
+            BG = Color.parseColor("#0B0B16");
+            SURFACE = Color.parseColor("#14141F");
+            SURFACE_HIGH = Color.parseColor("#1D1D2B");
+            ACCENT = Color.parseColor("#FF3B5C");
+            ACCENT_SOFT = Color.parseColor("#3A1622");
+            SECONDARY = Color.parseColor("#9B6BFF");
+            PINK = Color.parseColor("#FF6FA5");
+            BLUE = Color.parseColor("#5AA2FF");
+            TEXT = Color.parseColor("#F4F4FA");
+            TEXT_DIM = Color.parseColor("#9C9CB4");
+            STROKE = Color.parseColor("#2A2A3C");
+            SUCCESS = Color.parseColor("#3DD68C");
+            WARNING = Color.parseColor("#FFB84D");
+            ERROR = Color.parseColor("#FF5C7A");
+        } else {
+            BG = Color.parseColor("#F6F7FC");
+            SURFACE = Color.parseColor("#FFFFFF");
+            SURFACE_HIGH = Color.parseColor("#FFF3F6");
+            ACCENT = Color.parseColor("#FF2B4E");
+            ACCENT_SOFT = Color.parseColor("#FFE3EA");
+            SECONDARY = Color.parseColor("#7C4DFF");
+            PINK = Color.parseColor("#FF4D8D");
+            BLUE = Color.parseColor("#2F80ED");
+            TEXT = Color.parseColor("#14142B");
+            TEXT_DIM = Color.parseColor("#6E7191");
+            STROKE = Color.parseColor("#F0DCE3");
+            SUCCESS = Color.parseColor("#12B76A");
+            WARNING = Color.parseColor("#F79009");
+            ERROR = Color.parseColor("#E01E37");
+        }
+    }
+
+    /** Crimson -> pink -> violet gradient used for primary actions and the orb. */
+    public static GradientDrawable gradient(int start, int end, float radiusDp, Context context) {
+        GradientDrawable drawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{start, end});
+        drawable.setCornerRadius(dp(context, radiusDp));
+        return drawable;
+    }
+
+    public static GradientDrawable brandGradient(Context context, float radiusDp) {
+        return corneredBrand(context, radiusDp);
+    }
+
+    private static GradientDrawable corneredBrand(Context context, float radiusDp) {
+        GradientDrawable drawable = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{ACCENT, PINK, SECONDARY});
+        drawable.setCornerRadius(dp(context, radiusDp));
+        return drawable;
+    }
+
+    /** Tall rounded card with a soft shadow, used for every premium surface. */
+    public static LinearLayout glassCard(Context context) {
+        LinearLayout card = vertical(context);
+        GradientDrawable background = rounded(SURFACE, 24f, context);
+        background.setStroke(Math.max(1, dp(context, 1)), STROKE);
+        card.setBackground(background);
+        card.setElevation(dp(context, 3));
+        int pad = dp(context, 16);
+        card.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.bottomMargin = dp(context, 12);
+        card.setLayoutParams(params);
+        return card;
+    }
+
+    /** Circular icon button (bell, gear, mic) with a soft tinted background. */
+    public static TextView circleButton(Context context, String glyph, int tint, int diameterDp) {
+        TextView view = text(context, glyph, 18f, tint, true);
+        view.setGravity(Gravity.CENTER);
+        GradientDrawable background = new GradientDrawable();
+        background.setShape(GradientDrawable.OVAL);
+        background.setColor(SURFACE);
+        background.setStroke(Math.max(1, dp(context, 1)), STROKE);
+        view.setBackground(background);
+        view.setElevation(dp(context, 2));
+        int size = dp(context, diameterDp);
+        view.setLayoutParams(new LinearLayout.LayoutParams(size, size));
+        return view;
     }
 
     public static int dp(Context context, float value) {
@@ -78,7 +179,10 @@ public final class UiKit {
 
     public static LinearLayout card(Context context) {
         LinearLayout card = vertical(context);
-        card.setBackground(rounded(SURFACE, 18f, context));
+        GradientDrawable background = rounded(SURFACE, 20f, context);
+        background.setStroke(Math.max(1, dp(context, 1)), STROKE);
+        card.setBackground(background);
+        card.setElevation(dp(context, 2));
         int pad = dp(context, 14);
         card.setPadding(pad, pad, pad, pad);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -109,7 +213,7 @@ public final class UiKit {
     }
 
     public static TextView sectionLabel(Context context, String value) {
-        TextView label = text(context, value.toUpperCase(java.util.Locale.ROOT), 11f, TEXT_DIM, true);
+        TextView label = text(context, value.toUpperCase(java.util.Locale.ROOT), 11f, ACCENT, true);
         label.setLetterSpacing(0.12f);
         label.setPadding(0, dp(context, 14), 0, dp(context, 6));
         return label;
@@ -121,7 +225,11 @@ public final class UiKit {
         button.setAllCaps(false);
         button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         button.setTextColor(primary ? Color.WHITE : ACCENT);
-        button.setBackground(primary ? rounded(ACCENT, 24f, context) : outlined(ACCENT_SOFT, SURFACE, 24f, context));
+        button.setBackground(primary ? corneredBrand(context, 26f)
+                : outlined(ACCENT_SOFT, SURFACE, 26f, context));
+        if (primary) {
+            button.setElevation(dp(context, 3));
+        }
         button.setMinHeight(dp(context, 46));
         button.setPadding(dp(context, 18), dp(context, 10), dp(context, 18), dp(context, 10));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -203,7 +311,7 @@ public final class UiKit {
 
     public static View divider(Context context) {
         View view = new View(context);
-        view.setBackgroundColor(SURFACE_HIGH);
+        view.setBackgroundColor(STROKE);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, Math.max(1, dp(context, 0.6f)));
         params.topMargin = dp(context, 10);
